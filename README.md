@@ -39,3 +39,4 @@ npm run typegen
 1. Set the Build output directory to `public`
 1. Disable fallback mode (open)
 1. Mount both D1 databases in the project as "DB"
+1. Set the `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` Github Actions runner secrets
