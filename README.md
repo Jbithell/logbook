@@ -21,15 +21,6 @@ Open up [http://127.0.0.1:8788](http://127.0.0.1:8788) and you should be ready t
 
 To generate migrations after adjusting the schema, run `npx drizzle-kit generate:sqlite`
 
-First, build your app for production:
-
-> [!NOTE]  
-> These notes are incomplete
-
-1. Create a new project on Cloudflare Pages
-1. Make sure to disable fallback mode (open) in the Cloudflare Pages settings
-1. Mount the D1 database in the project as "DB"
-
 ### Typegen
 
 You will need to rerun typegen whenever you make changes to `wrangler.toml`. Generate types for your Cloudflare bindings in `wrangler.toml`:
@@ -37,3 +28,15 @@ You will need to rerun typegen whenever you make changes to `wrangler.toml`. Gen
 ```sh
 npm run typegen
 ```
+
+### Deployment to Cloudflare Pages
+
+> [!NOTE]  
+> These notes are incomplete
+
+1. Create a new project on Cloudflare Pages
+1. Disable automatic deployments for both main branch and preview branches
+1. Set the build command to `npm run build`
+1. Set the Build output directory to `public`
+1. Disable fallback mode (open)
+1. Mount both D1 databases in the project as "DB"
