@@ -6,7 +6,7 @@ import { Users } from "./Users";
 export const UserPasswords = sqliteTable("user_passwords", {
   userId: integer("userId", { mode: "number" })
     .primaryKey()
-    .references(() => Users.id),
+    .references(() => Users.id, { onUpdate: "cascade", onDelete: "cascade" }),
   preSalt: text("pre_salt", { length: 16 })
     .notNull()
     .$defaultFn(() => nanoid(16)),

@@ -8,10 +8,10 @@ export const UsersToBoats = sqliteTable(
   {
     userId: integer("user")
       .notNull()
-      .references(() => Users.id),
+      .references(() => Users.id, { onUpdate: "cascade", onDelete: "cascade" }),
     boatId: integer("boat")
       .notNull()
-      .references(() => Boats.id),
+      .references(() => Boats.id, { onUpdate: "cascade", onDelete: "cascade" }),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.userId, t.boatId] }),
