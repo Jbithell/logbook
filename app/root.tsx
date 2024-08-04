@@ -1,9 +1,21 @@
+import "@mantine/charts/styles.css";
+import "@mantine/code-highlight/styles.css";
+import {
+  Button,
+  ColorSchemeScript,
+  Container,
+  Group,
+  MantineColorsTuple,
+  MantineProvider,
+  Text,
+  Title,
+  createTheme,
+} from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
-import "@mantine/charts/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/nprogress/styles.css";
-import "@mantine/code-highlight/styles.css";
+import { LoaderFunctionArgs, json } from "@remix-run/cloudflare";
 import {
   Link,
   Links,
@@ -12,24 +24,10 @@ import {
   Scripts,
   ScrollRestoration,
   isRouteErrorResponse,
-  useNavigation,
   useRouteError,
 } from "@remix-run/react";
-import {
-  ColorSchemeScript,
-  Title,
-  Text,
-  Button,
-  Container,
-  Group,
-  AppShell,
-  LoadingOverlay,
-  MantineProvider,
-  createTheme,
-  MantineColorsTuple,
-} from "@mantine/core";
 import classes from "./components/ErrorBoundary.module.css";
-import { Navbar } from "./components/SecureNavbar";
+import { getAuthenticatedUser } from "./utils/authsession.server";
 
 const myColor: MantineColorsTuple = [
   "#ffe9f0",
@@ -51,6 +49,12 @@ const theme = createTheme({
   },
   primaryShade: 3,
 });
+
+export async function loader({ request, context }: LoaderFunctionArgs) {
+  return json({
+    ...(await getAuthenticatedUser(request, context)),
+  });
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (

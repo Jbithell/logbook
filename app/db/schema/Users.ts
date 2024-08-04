@@ -33,7 +33,7 @@ export function lower(email: AnySQLiteColumn): SQL {
   return sql`lower(${email})`;
 }
 
-export const BoatsRelations = relations(Users, ({ many }) => ({
+export const UsersRelations = relations(Users, ({ many }) => ({
   boatsOwned: many(Boats),
   boats: many(UsersToBoats),
 }));

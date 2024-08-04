@@ -1,3 +1,4 @@
+import { Alert, Button, PasswordInput, TextInput } from "@mantine/core";
 import {
   ActionFunctionArgs,
   json,
@@ -5,15 +6,24 @@ import {
   MetaFunction,
   redirect,
 } from "@remix-run/cloudflare";
-import { Form, useSearchParams } from "@remix-run/react";
-import { createUserSession, getSessionId } from "~/authsession.server";
+import {
+  Form,
+  Link,
+  useActionData,
+  useNavigation,
+  useSearchParams,
+} from "@remix-run/react";
+import { eq } from "drizzle-orm";
+import { db } from "~/d1client.server";
+import { lower, Users } from "~/db/schema/Users";
+import { createUserSession, getsessionUUID } from "~/utils/authsession.server";
 export const meta: MetaFunction = () => {
   return [{ title: "Login" }];
 };
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const sessionId = await getSessionId(request);
-  if (sessionId) return redirect("/home");
+  const sessionUUID = await getsessionUUID(request);
+  if (sessionUUID) return redirect("/home");
   return json({});
 }
 
@@ -37,37 +47,73 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const redirectTo = safeRedirect(formData.get("redirectTo"));
   const email = formData.get("email");
   const password = formData.get("password");
-
+  if (
+    !email ||
+    typeof email !== "string" ||
+    !password ||
+    typeof password !== "string"
+  )
+    return json({ error: "Blank email or password" }, { status: 400 });
+  const { env } = context.cloudflare;
+  const user = await db(env.DB)
+    .select({
+      id: Users.id,
+    })
+    .from(Users)
+    .where(eq(lower(Users.email), email.toLowerCase()))
+    .limit(1);
+  if (user === null || user.length !== 1)
+    return json({ error: "Invalid email or password" }, { status: 400 });
   return createUserSession({
     request,
-    userId: 12,
+    userId: user[0].id,
     redirectTo,
     context,
   });
 }
 export default function App() {
   const [searchParams] = useSearchParams();
+  const navigation = useNavigation();
+  const data = useActionData<typeof action>();
   const redirectTo = searchParams.get("redirectTo") || "/home";
   return (
     <Form method="post">
-      <label htmlFor="email">Email address</label>
-      <input
-        id="email"
+      {data?.error && (
+        <Alert variant="light" my="md" title="{data.error}"></Alert>
+      )}
+      <TextInput
+        size="md"
+        label="Email"
+        my="md"
+        autoFocus
+        withAsterisk
         required
+        autoComplete="email"
         name="email"
         type="email"
-        autoComplete="email"
+        placeholder="myboat@boat.com"
+        disabled={navigation.state === "submitting"}
+      />
+      <PasswordInput
+        size="md"
+        my="md"
+        label="Password"
+        withAsterisk
+        required
+        autoComplete="current-password"
+        name="password"
+        disabled={navigation.state === "submitting"}
       />
 
-      <label htmlFor="password">Password</label>
-      <input
-        id="password"
-        name="password"
-        type="password"
-        autoComplete="current-password"
-      />
       <input type="hidden" name="redirectTo" value={redirectTo} />
-      <button type="submit">Log in</button>
+      <Button type="submit" fullWidth my="md" size="md">
+        {navigation.state === "submitting" ? "Logging in..." : "Login"}
+      </Button>
+      <Link to="/register" style={{ textDecoration: "none" }}>
+        <Button variant="subtle" fullWidth>
+          Don't have an account yet? Register
+        </Button>
+      </Link>
     </Form>
   );
 }

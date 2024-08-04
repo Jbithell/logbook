@@ -1,13 +1,12 @@
 import { relations, sql } from "drizzle-orm";
 import {
-  text,
   integer,
   sqliteTable,
-  index,
+  text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { LogEntries } from "./LogEntries";
 import { nanoid } from "nanoid";
+import { LogEntries } from "./LogEntries";
 import { Users } from "./Users";
 import { UsersToBoats } from "./UsersToBoats";
 

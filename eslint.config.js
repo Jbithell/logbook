@@ -1,8 +1,8 @@
-import prettier from "prettier";
 import remixEslintConfig from "@remix-run/eslint-config";
 import drizzle from "eslint-plugin-drizzle";
+import prettier from "prettier";
 export default [
-  drizzle.configs["recommended"]
+  drizzle.configs["recommended"],
   {
     plugins: {
       prettier,

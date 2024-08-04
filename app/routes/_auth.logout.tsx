@@ -1,5 +1,5 @@
 import { ActionFunctionArgs, redirect } from "@remix-run/cloudflare";
-import { logout } from "~/authsession.server";
+import { logout } from "~/utils/authsession.server";
 
 export async function action({ request, context }: ActionFunctionArgs) {
   return logout(request, context);

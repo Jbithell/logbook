@@ -1,24 +1,16 @@
-import {
-  ActionFunctionArgs,
-  json,
-  redirect,
-  type LoaderFunctionArgs,
-} from "@remix-run/cloudflare";
-import { db } from "../d1client.server";
-import { withZod } from "@remix-validated-form/with-zod";
-import { number, z as zod } from "zod";
-import { GenericObject, validationError } from "remix-validated-form";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
-import { LogEntries } from "~/db/schema/LogEntries";
+import { ActionFunctionArgs, json, redirect } from "@remix-run/cloudflare";
+import { eq } from "drizzle-orm";
+import { GenericObject } from "remix-validated-form";
+import { z as zod } from "zod";
 import { Boats } from "~/db/schema/Boats";
+import { LogEntries } from "~/db/schema/LogEntries";
+import { db } from "../d1client.server";
 
-export const loader = async () => redirect("/privacy-and-security");
+export const loader = async () => redirect("/");
 
-const validator = withZod(
-  zod.object({
-    boatuuid: zod.string().min(21).max(21), // This value comes from the URL parameter
-  })
-);
+const validator = zod.object({
+  boatuuid: zod.string().min(21).max(21), // This value comes from the URL parameter
+});
 
 export const action = async ({
   context,
@@ -39,13 +31,13 @@ export const action = async ({
     ...(payload as GenericObject),
     boatuuid: params.boat,
   };
-  const validated = await validator.validate(unvalidatedData);
-  if (validated.error) return validationError(validated.error);
+  const validated = await validator.safeParse(unvalidatedData);
+  if (!validated.success) return validated.error;
 
   const findBoat = await db(env.DB)
     .select({ id: Boats.id })
     .from(Boats)
-    .where(eq(Boats.uuid, validated.boatuuid))
+    .where(eq(Boats.uuid, validated.data.boatuuid))
     .limit(1);
   if (findBoat.length !== 1) return json({ message: "Boat not Found" }, 404);
   const boatId = findBoat[0].id;

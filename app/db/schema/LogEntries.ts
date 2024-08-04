@@ -27,7 +27,7 @@ export const LogEntries = sqliteTable(
   }
 );
 
-export const LogRelations = relations(LogEntries, ({ one }) => ({
+export const LogEntriesRelations = relations(LogEntries, ({ one }) => ({
   boat: one(Boats, {
     fields: [LogEntries.boatId],
     references: [Boats.id],
