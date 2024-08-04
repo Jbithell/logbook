@@ -7,12 +7,15 @@ import {
   redirect,
 } from "@remix-run/cloudflare";
 import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
+import { nanoid } from "nanoid";
 import { z as zod } from "zod";
 import { zfd } from "zod-form-data";
 import { PasswordInputField } from "~/components/PasswordInput";
 import { db } from "~/d1client.server";
+import { UserPasswords } from "~/db/schema/UserPasswords";
 import { Users } from "~/db/schema/Users";
 import { createUserSession, getsessionUUID } from "~/utils/authsession.server";
+import { passwordHash } from "~/utils/passwordHash";
 export const meta: MetaFunction = () => {
   return [{ title: "Register" }];
 };
@@ -49,9 +52,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     );
   if (validated.data) {
     const { env } = context.cloudflare;
-    let user;
+    let userId: number;
     try {
-      user = await db(env.DB)
+      // This should be wrapped in a transaction, but it isn't supported by D1 at the moment
+      let user = await db(env.DB)
         .insert(Users)
         .values({
           firstName: validated.data.firstName,
@@ -59,7 +63,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
           email: validated.data.email,
         })
         .returning({ userId: Users.id });
+      if (user === null || user.length !== 1)
+        throw new Error("Error creating user account");
+      let preSalt = nanoid(16);
+      let postSalt = nanoid(16);
+      let hash = await passwordHash(preSalt, postSalt, validated.data.password);
+      await db(env.DB).insert(UserPasswords).values({
+        userId: user[0].userId,
+        preSalt: preSalt,
+        postSalt: postSalt,
+        hash: hash,
+      });
+      userId = user[0].userId;
     } catch (e) {
+      console.error(e);
       return json(
         {
           error: "Error creating user account - email already exists",
@@ -68,17 +85,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         { status: 400 }
       );
     }
-    if (user === null || user.length !== 1)
-      return json(
-        {
-          error: "Error creating user account",
-          errors: {} as formattedErrorsType,
-        },
-        { status: 400 }
-      );
     return createUserSession({
       request,
-      userId: user[0].userId,
+      userId: userId,
       redirectTo: "/home",
       context,
     });

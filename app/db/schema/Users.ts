@@ -1,16 +1,15 @@
 import { relations, SQL, sql } from "drizzle-orm";
 import {
-  text,
+  AnySQLiteColumn,
   integer,
   sqliteTable,
+  text,
   uniqueIndex,
-  AnySQLiteColumn,
 } from "drizzle-orm/sqlite-core";
-import { Boats } from "./Boats";
 import { nanoid } from "nanoid";
+import { Boats } from "./Boats";
 import { UsersToBoats } from "./UsersToBoats";
 
-// Used to track growth of an installation over time
 export const Users = sqliteTable(
   "users",
   {

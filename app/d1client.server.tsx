@@ -2,8 +2,9 @@ import { drizzle } from "drizzle-orm/d1";
 import { AuthSessions, AuthSessionsRelations } from "./db/schema/AuthSessions";
 import { Boats, BoatsRelations } from "./db/schema/Boats";
 import { LogEntries, LogEntriesRelations } from "./db/schema/LogEntries";
+import { UserPasswords } from "./db/schema/UserPasswords";
 import { Users, UsersRelations } from "./db/schema/Users";
-import { UsersToBoats, usersToBoatsRelations } from "./db/schema/UsersToBoats";
+import { UsersToBoats, UsersToBoatsRelations } from "./db/schema/UsersToBoats";
 
 export const db = (database: D1Database) =>
   drizzle(database, {
@@ -17,7 +18,8 @@ export const db = (database: D1Database) =>
       LogEntries,
       LogEntriesRelations,
       UsersToBoats,
-      usersToBoatsRelations,
+      UsersToBoatsRelations,
+      UserPasswords,
     },
     logger: process.env.NODE_ENV === "production" ? false : true,
   });

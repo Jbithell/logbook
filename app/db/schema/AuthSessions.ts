@@ -8,7 +8,6 @@ import {
 import { nanoid } from "nanoid";
 import { Users } from "./Users";
 
-// Used to track growth of an installation over time
 export const AuthSessions = sqliteTable(
   "auth_sessions",
   {

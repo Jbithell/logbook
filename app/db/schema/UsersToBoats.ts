@@ -1,7 +1,7 @@
-import { integer, sqliteTable, primaryKey } from "drizzle-orm/sqlite-core";
-import { Users } from "./Users";
-import { Boats } from "./Boats";
 import { relations } from "drizzle-orm";
+import { integer, primaryKey, sqliteTable } from "drizzle-orm/sqlite-core";
+import { Boats } from "./Boats";
+import { Users } from "./Users";
 
 export const UsersToBoats = sqliteTable(
   "users_to_boats",
@@ -17,7 +17,7 @@ export const UsersToBoats = sqliteTable(
     pk: primaryKey({ columns: [t.userId, t.boatId] }),
   })
 );
-export const usersToBoatsRelations = relations(UsersToBoats, ({ one }) => ({
+export const UsersToBoatsRelations = relations(UsersToBoats, ({ one }) => ({
   boat: one(Boats, {
     fields: [UsersToBoats.boatId],
     references: [Boats.id],

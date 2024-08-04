@@ -10,7 +10,6 @@ import { LogEntries } from "./LogEntries";
 import { Users } from "./Users";
 import { UsersToBoats } from "./UsersToBoats";
 
-// Used to track growth of an installation over time
 export const Boats = sqliteTable(
   "boats",
   {

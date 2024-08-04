@@ -1,6 +1,7 @@
 -- Reset the database by dropping all the tables.
 PRAGMA defer_foreign_keys = true;
 DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS user_passwords;
 DROP TABLE IF EXISTS boats;
 DROP TABLE IF EXISTS log_entries;
 DROP TABLE IF EXISTS users_to_boats;

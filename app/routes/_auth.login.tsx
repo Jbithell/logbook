@@ -15,8 +15,10 @@ import {
 } from "@remix-run/react";
 import { eq } from "drizzle-orm";
 import { db } from "~/d1client.server";
+import { UserPasswords } from "~/db/schema/UserPasswords";
 import { lower, Users } from "~/db/schema/Users";
 import { createUserSession, getsessionUUID } from "~/utils/authsession.server";
+import { passwordHash } from "~/utils/passwordHash";
 export const meta: MetaFunction = () => {
   return [{ title: "Login" }];
 };
@@ -55,14 +57,32 @@ export async function action({ request, context }: ActionFunctionArgs) {
   )
     return json({ error: "Blank email or password" }, { status: 400 });
   const { env } = context.cloudflare;
+
   const user = await db(env.DB)
     .select({
       id: Users.id,
+      preSalt: UserPasswords.preSalt,
+      postSalt: UserPasswords.postSalt,
+      password: UserPasswords.hash,
     })
     .from(Users)
     .where(eq(lower(Users.email), email.toLowerCase()))
-    .limit(1);
-  if (user === null || user.length !== 1)
+    .limit(1)
+    .leftJoin(UserPasswords, eq(Users.id, UserPasswords.userId));
+  if (
+    user === null ||
+    user.length !== 1 ||
+    user[0].password === null ||
+    user[0].preSalt === null ||
+    user[0].postSalt === null
+  )
+    return json({ error: "Invalid email or password" }, { status: 400 });
+  const passwordInput = await passwordHash(
+    user[0].preSalt,
+    user[0].postSalt,
+    password
+  );
+  if (passwordInput !== user[0].password)
     return json({ error: "Invalid email or password" }, { status: 400 });
   return createUserSession({
     request,
@@ -79,7 +99,7 @@ export default function App() {
   return (
     <Form method="post">
       {data?.error && (
-        <Alert variant="light" my="md" title="{data.error}"></Alert>
+        <Alert variant="light" my="md" title={data.error}></Alert>
       )}
       <TextInput
         size="md"
