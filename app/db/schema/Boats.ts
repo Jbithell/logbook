@@ -24,8 +24,10 @@ export const Boats = sqliteTable(
   },
   (table) => {
     return {
-      uuidIndex: uniqueIndex("uuid_idx").on(table.uuid),
-      publicLinkIndex: uniqueIndex("public_link_idx").on(table.publicLink),
+      uuidIndex: uniqueIndex("boats_uuid_idx").on(table.uuid),
+      publicLinkIndex: uniqueIndex("boats_public_link_idx").on(
+        table.publicLink
+      ),
     };
   }
 );

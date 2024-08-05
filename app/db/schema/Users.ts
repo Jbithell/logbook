@@ -7,7 +7,9 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { nanoid } from "nanoid";
+import { AuthSessions } from "./AuthSessions";
 import { Boats } from "./Boats";
+import { LogEntries } from "./LogEntries";
 import { UsersToBoats } from "./UsersToBoats";
 
 export const Users = sqliteTable(
@@ -24,7 +26,7 @@ export const Users = sqliteTable(
   },
   (table) => {
     return {
-      emailIndex: uniqueIndex("email_idx").on(lower(table.email)), //Make sure the table is unique on the lowercase email
+      emailIndex: uniqueIndex("users_email_idx").on(lower(table.email)), //Make sure the table is unique on the lowercase email
     };
   }
 );
@@ -35,4 +37,6 @@ export function lower(email: AnySQLiteColumn): SQL {
 export const UsersRelations = relations(Users, ({ many }) => ({
   boatsOwned: many(Boats),
   boats: many(UsersToBoats),
+  logEntries: many(LogEntries),
+  authSessions: many(AuthSessions),
 }));
