@@ -109,7 +109,7 @@ export async function requireAuthenticatedUserId(
 ) {
   // This is the same as the above, but it will protect the route or action it is part of and only returns the userid to speed things up
   const sessionUUID = await getsessionUUID(request);
-  if (sessionUUID === undefined) return null;
+  if (sessionUUID === undefined) throw redirect("/");
   const { env } = context.cloudflare;
   const databaseSession = await db(env.DB).query.AuthSessions.findFirst({
     with: {

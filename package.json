@@ -35,6 +35,8 @@
     "@remix-run/cloudflare-pages": "^2.11.0",
     "@remix-run/css-bundle": "^2.4.0",
     "@remix-run/react": "^2.11.0",
+    "@rvf/remix": "^0.1.0",
+    "@rvf/zod": "^0.1.0",
     "@tabler/icons-react": "^3.2.0",
     "@typescript-eslint/parser": "^6.16.0",
     "dayjs": "^1.11.10",

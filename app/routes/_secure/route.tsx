@@ -1,9 +1,9 @@
-import { AppShell, LoadingOverlay, Title } from "@mantine/core";
+import { AppShell, LoadingOverlay } from "@mantine/core";
 import { json, LoaderFunctionArgs } from "@remix-run/cloudflare";
 import { Outlet, useLoaderData, useNavigation } from "@remix-run/react";
-import { SecureNavbar } from "~/components/SecureNavbar";
 import { requireAuthenticatedUserId } from "~/utils/authsession.server";
 import { useOptionalUser } from "~/utils/useUserHook";
+import { SecureNavbar } from "./SecureNavbar";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   return json({
@@ -18,8 +18,7 @@ export default function App() {
   return (
     <AppShell header={{ height: 60 }} padding="md">
       <AppShell.Header>
-        <Title>Hello {user?.firstName}</Title>
-        <SecureNavbar />
+        <SecureNavbar name={user ? user.firstName + " " + user.surname : ""} />
       </AppShell.Header>
       <AppShell.Main>
         <LoadingOverlay

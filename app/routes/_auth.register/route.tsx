@@ -10,7 +10,7 @@ import { Form, Link, useActionData, useNavigation } from "@remix-run/react";
 import { nanoid } from "nanoid";
 import { z as zod } from "zod";
 import { zfd } from "zod-form-data";
-import { PasswordInputField } from "~/components/PasswordInput";
+import { PasswordInputField } from "~/routes/_auth.register/PasswordInput";
 import { db } from "~/d1client.server";
 import { UserPasswords } from "~/db/schema/UserPasswords";
 import { Users } from "~/db/schema/Users";
