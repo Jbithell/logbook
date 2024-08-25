@@ -1,4 +1,4 @@
-import { Text } from "@mantine/core";
+import { Table, Text } from "@mantine/core";
 import {
   json,
   LoaderFunctionArgs,
@@ -10,9 +10,6 @@ import { and, eq } from "drizzle-orm";
 import { db } from "~/d1client.server";
 import { Boats } from "~/db/schema/Boats";
 import { requireAuthenticatedUserId } from "~/utils/authsession.server";
-export const meta: MetaFunction = () => {
-  return [{ title: "Boat" }];
-};
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const userId = await requireAuthenticatedUserId(request, context);
@@ -46,10 +43,44 @@ export default function App() {
   return (
     <>
       <Text>Specific Boat {data.boat.name}</Text>
-      {data.boat.logEntries.map((logEntry) => (
-        <Text>{logEntry.title}</Text>
-      ))}
+      <Table>
+        <Table.Thead>
+          <Table.Tr>
+            <Table.Th>Title</Table.Th>
+            <Table.Th>Description</Table.Th>
+            <Table.Th>Timestamp</Table.Th>
+            <Table.Th>Created</Table.Th>
+            <Table.Th>Updated</Table.Th>
+            <Table.Th>Source</Table.Th>
+            <Table.Th>Latitude</Table.Th>
+            <Table.Th>Longitude</Table.Th>
+            <Table.Th>Observations</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {data.boat.logEntries.map((logEntry) => (
+            <Table.Tr key={logEntry.id}>
+              <Table.Td>{logEntry.title}</Table.Td>
+              <Table.Td>{logEntry.description}</Table.Td>
+              <Table.Td>{new Date(logEntry.timestamp).toUTCString()}</Table.Td>
+              <Table.Td>{new Date(logEntry.created).toUTCString()}</Table.Td>
+              <Table.Td>{new Date(logEntry.updated).toUTCString()}</Table.Td>
+              <Table.Td>{logEntry.source}</Table.Td>
+              <Table.Td>{logEntry.latitude}</Table.Td>
+              <Table.Td>{logEntry.longitude}</Table.Td>
+              <Table.Td>
+                <pre>{JSON.stringify(logEntry.observations, null, "\t")}</pre>
+              </Table.Td>
+            </Table.Tr>
+          ))}
+        </Table.Tbody>
+      </Table>
       <Link to={`/boats/${data.boat.uuid}/new`}>New Entry</Link>
     </>
   );
 }
+
+export const meta: MetaFunction<typeof loader> = ({ data }) => {
+  if (!data) return [{ title: "Boat" }];
+  return [{ title: data.boat.name }];
+};

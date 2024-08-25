@@ -84,7 +84,7 @@ export const action = async ({
   const date = new Date();
   if (validated.data.utc) {
     date.setUTCFullYear(Number(validated.data.utc.year));
-    date.setUTCMonth(Number(validated.data.utc.month));
+    date.setUTCMonth(Number(validated.data.utc.month) - 1);
     date.setUTCDate(Number(validated.data.utc.day));
     date.setUTCHours(Number(validated.data.utc.hour));
     date.setUTCMinutes(Number(validated.data.utc.minute));
