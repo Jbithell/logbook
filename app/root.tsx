@@ -6,7 +6,6 @@ import {
   Container,
   Group,
   MantineColorsTuple,
-  MantineProvider,
   Text,
   Title,
   createTheme,
@@ -27,6 +26,7 @@ import {
   useRouteError,
 } from "@remix-run/react";
 import classes from "./components/ErrorBoundary.module.css";
+import { MantineProviderWrapper } from "./components/theme";
 import { getAuthenticatedUser } from "./utils/authsession.server";
 
 const myColor: MantineColorsTuple = [
@@ -67,7 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <ColorSchemeScript />
       </head>
       <body>
-        <MantineProvider theme={theme}>{children}</MantineProvider>
+        <MantineProviderWrapper>{children}</MantineProviderWrapper>
         <ScrollRestoration />
         <Scripts />
       </body>

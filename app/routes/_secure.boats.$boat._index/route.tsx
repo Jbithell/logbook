@@ -7,9 +7,11 @@ import {
 } from "@remix-run/cloudflare";
 import { Link, useLoaderData } from "@remix-run/react";
 import { and, eq } from "drizzle-orm";
+import { ClientOnly } from "remix-utils/client-only";
 import { db } from "~/d1client.server";
 import { Boats } from "~/db/schema/Boats";
 import { requireAuthenticatedUserId } from "~/utils/authsession.server";
+import { Map } from "./Map.client";
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {
   const userId = await requireAuthenticatedUserId(request, context);
@@ -52,8 +54,7 @@ export default function App() {
             <Table.Th>Created</Table.Th>
             <Table.Th>Updated</Table.Th>
             <Table.Th>Source</Table.Th>
-            <Table.Th>Latitude</Table.Th>
-            <Table.Th>Longitude</Table.Th>
+            <Table.Th>Map</Table.Th>
             <Table.Th>Observations</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -66,8 +67,21 @@ export default function App() {
               <Table.Td>{new Date(logEntry.created).toUTCString()}</Table.Td>
               <Table.Td>{new Date(logEntry.updated).toUTCString()}</Table.Td>
               <Table.Td>{logEntry.source}</Table.Td>
-              <Table.Td>{logEntry.latitude}</Table.Td>
-              <Table.Td>{logEntry.longitude}</Table.Td>
+              <Table.Td>
+                <ClientOnly fallback={<Text>Map</Text>}>
+                  {() =>
+                    logEntry.latitude &&
+                    logEntry.longitude &&
+                    logEntry.latitude !== -91 &&
+                    logEntry.longitude !== -181 && (
+                      <Map
+                        latitude={logEntry.latitude}
+                        longitude={logEntry.longitude}
+                      />
+                    )
+                  }
+                </ClientOnly>
+              </Table.Td>
               <Table.Td>
                 <pre>{JSON.stringify(logEntry.observations, null, "\t")}</pre>
               </Table.Td>
