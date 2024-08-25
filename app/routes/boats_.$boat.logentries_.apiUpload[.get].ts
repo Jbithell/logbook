@@ -16,8 +16,8 @@ const validator = zod.object({
   sog: zod.number(), // Speed over ground in knots
   alt: zod.number(), // Altitude in meters
   sig: zod.number(), // Signal quality in dBm
-  batt: zod.number(), // Battery level in volts
-  sol: zod.number(), // Solar panel input voltage in volts
+  bat: zod.number(), // Battery level in volts
+  vlt: zod.number(), // Solar panel input voltage in volts
   id: zod.number(), // ESP32 MAC address
   y: zod.number(),
   j: zod.number(),
@@ -73,8 +73,8 @@ export const loader = async ({
     sog: Number(searchParams.get("sog")),
     alt: Number(searchParams.get("alt")),
     sig: Number(searchParams.get("sig")),
-    batt: Number(searchParams.get("batt")),
-    sol: Number(searchParams.get("sol")),
+    bat: Number(searchParams.get("bat")),
+    vlt: Number(searchParams.get("vlt")),
     id: Number(searchParams.get("id")),
     y: Number(searchParams.get("y")),
     j: Number(searchParams.get("j")),
@@ -127,12 +127,12 @@ export const loader = async ({
           title: "Mobile signal quality",
         },
         batt: {
-          value: validated.data.batt,
+          value: validated.data.bat,
           unit: "V",
           title: "Battery level",
         },
         sol: {
-          value: validated.data.sol,
+          value: validated.data.vlt,
           unit: "V",
           title: "Input voltage",
         },

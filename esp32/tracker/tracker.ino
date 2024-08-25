@@ -252,7 +252,7 @@ void setup()
     // 1 CAT-M
     // 2 NB-IoT
     // 3 CAT-M and NB-IoT
-    // Set network preferre to auto
+    // Set network preferre to NB-IOT
     uint8_t perferred = 3;
     modem.setPreferredMode(perferred);
 
@@ -364,10 +364,14 @@ void setup()
 
 bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second)
 {
-    Serial.println("Performing HTTPS GET request to upload :( ... ");
+    Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
     HttpClient http(client, HTTPSSERVER, 443);
-    http.connectionKeepAlive(); // Needed for HTTPs
-    int err = http.get(String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()));
+    http.connectionKeepAlive();          // Needed for HTTPs
+    http.setHttpResponseTimeout(60000); // 60 seconds
+    int requestStart = millis();
+    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac());
+    Serial.println(url);
+    int err = http.get(url);
     if (err != 0)
     {
         /*
@@ -398,14 +402,17 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
         return false;
     }
 
-    Serial.println(F("Response Headers:"));
+    http.skipResponseHeaders();
+
+    /*Serial.println(F("Response Headers:"));
     while (http.headerAvailable())
     {
         String headerName = http.readHeaderName();
         String headerValue = http.readHeaderValue();
         Serial.println("    " + headerName + " : " + headerValue);
-    }
+    }*/
 
+    /*
     int length = http.contentLength();
     if (length >= 0)
     {
@@ -422,10 +429,17 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.println(body);
 
     Serial.print(F("Body length is: "));
-    Serial.println(body.length());
+    Serial.println(body.length());*/
+
+    String body = http.responseBody(); // You need to read the body to clear the buffer, if you don't it'll break subsequent requests
+    Serial.println(body);
 
     // Shutdown
     http.stop();
+
+    Serial.print("HTTPs GET Request took ");
+    Serial.print((millis() - requestStart) / 1000);
+    Serial.println(" seconds");
     return true;
 }
 
@@ -584,15 +598,27 @@ void loop()
     }
     else
     {
-        Serial.println("Sending data to server");
-        if (foundGPS)
+        int retryCount = 0;
+        while (retryCount < 3)
         {
-            httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second);
+            Serial.println("Sending data to server");
+            if (foundGPS)
+            {
+                if (httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second))
+                {
+                    break;
+                }
+            }
+            else
+            {
+                if (httpsGetRequest(-91, -181, -99, -99, 0, 0, 0, 0, 0, 0))
+                {
+                    break;
+                }
+            }
+            retryCount++;
         }
-        else
-        {
-            httpsGetRequest(-91, -181, -99, -99, 0, 0, 0, 0, 0, 0);
-        }
+
         /*
         JsonDocument doc;
         String json;

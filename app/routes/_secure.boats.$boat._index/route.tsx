@@ -77,6 +77,7 @@ export default function App() {
                       <Map
                         latitude={logEntry.latitude}
                         longitude={logEntry.longitude}
+                        zoom={18}
                       />
                     )
                   }
