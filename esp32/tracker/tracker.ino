@@ -32,10 +32,9 @@ TinyGsm modem(SerialAT);
 #endif
 
 #define HTTPSSERVER "logbook-1oi.pages.dev"
-#define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.json"
+#define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
 
 TinyGsmClientSecure client(modem);
-HttpClient http(client, HTTPSSERVER, 443);
 
 #define TIME_TO_SLEEP 60        // Time (in seconds) to sleep between readings normally
 #define TIME_TO_SLEEP_NOGPS 300 // Time (in seconds) to sleep between readings if we can't get a GPS fix
@@ -363,15 +362,24 @@ void setup()
     Serial.println("Network has booted");
 }
 
-bool httpsRequest(String json)
+bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second)
 {
-    Serial.print(F("Performing HTTPS GET request... "));
-    http.connectionKeepAlive();        // Needed for HTTPS
-    http.setHttpResponseTimeout(5000); // 5 Seconds
-    int err = http.put(HTTPSPATH, "application/json", json);
+    Serial.println("Performing HTTPS GET request to upload :( ... ");
+    HttpClient http(client, HTTPSSERVER, 443);
+    http.connectionKeepAlive(); // Needed for HTTPs
+    int err = http.get(String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()));
     if (err != 0)
     {
-        Serial.println(F("failed to connect"));
+        /*
+          HTTP_SUCCESS =0;
+          HTTP_ERROR_CONNECTION_FAILED =-1;
+          HTTP_ERROR_API =-2;
+          HTTP_ERROR_TIMED_OUT =-3;
+          HTTP_ERROR_INVALID_RESPONSE =-4;
+        */
+        Serial.print(err);
+        Serial.println(F(" failed to connect"));
+        http.stop();
         return false;
     }
 
@@ -380,11 +388,82 @@ bool httpsRequest(String json)
     Serial.println(status);
     if (!status)
     {
+        http.stop();
         return false;
     }
 
     if (status > 299 || status < 200)
     {
+        http.stop();
+        return false;
+    }
+
+    Serial.println(F("Response Headers:"));
+    while (http.headerAvailable())
+    {
+        String headerName = http.readHeaderName();
+        String headerValue = http.readHeaderValue();
+        Serial.println("    " + headerName + " : " + headerValue);
+    }
+
+    int length = http.contentLength();
+    if (length >= 0)
+    {
+        Serial.print(F("Content length is: "));
+        Serial.println(length);
+    }
+    if (http.isResponseChunked())
+    {
+        Serial.println(F("The response is chunked"));
+    }
+
+    String body = http.responseBody();
+    Serial.println(F("Response:"));
+    Serial.println(body);
+
+    Serial.print(F("Body length is: "));
+    Serial.println(body.length());
+
+    // Shutdown
+    http.stop();
+    return true;
+}
+
+bool httpsPutRequest(String json)
+{
+    /* Couldn't get this working */
+    Serial.print(F("Performing HTTPS PUT request to upload... "));
+    HttpClient http(client, HTTPSSERVER, 443);
+    http.connectionKeepAlive(); // Needed for HTTPs
+    Serial.println(json);
+    int err = http.put(HTTPSPATH, "application/json", json);
+    if (err != 0)
+    {
+        /*
+          HTTP_SUCCESS =0;
+          HTTP_ERROR_CONNECTION_FAILED =-1;
+          HTTP_ERROR_API =-2;
+          HTTP_ERROR_TIMED_OUT =-3;
+          HTTP_ERROR_INVALID_RESPONSE =-4;
+        */
+        Serial.print(err);
+        Serial.println(F(" failed to connect"));
+        http.stop();
+        return false;
+    }
+
+    int status = http.responseStatusCode();
+    Serial.print(F("Response status code: "));
+    Serial.println(status);
+    if (!status)
+    {
+        http.stop();
+        return false;
+    }
+
+    if (status > 299 || status < 200)
+    {
+        http.stop();
         return false;
     }
 
@@ -476,8 +555,8 @@ void loop()
             Serial.println(minute);
             Serial.print("UTCsecond:");
             Serial.println(second);
-            String rawGps = modem.getGPSraw();
-            Serial.println(rawGps);
+            // String rawGps = modem.getGPSraw();
+            // Serial.println(rawGps);
             foundGPS = true;
 
             // TODO get this working
@@ -506,6 +585,15 @@ void loop()
     else
     {
         Serial.println("Sending data to server");
+        if (foundGPS)
+        {
+            httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second);
+        }
+        else
+        {
+            httpsGetRequest(-91, -181, -99, -99, 0, 0, 0, 0, 0, 0);
+        }
+        /*
         JsonDocument doc;
         String json;
         if (foundGPS)
@@ -527,7 +615,8 @@ void loop()
         doc["id"] = ESP.getEfuseMac();
         serializeJson(doc, json);
         Serial.println(json);
-        httpsRequest(json);
+        httpsPutRequest(json);
+        */
     }
 
     Serial.print("Cycle complete: ");
