@@ -18,11 +18,20 @@ const validator = zod.object({
   lon: zod.number().min(-180).max(180).optional(), // Longitude
   sogkts: zod.number().optional(), // Speed over ground in knots
   alt: zod.number().optional(), // Altitude in meters
-  utc: zod.string().optional(), // UTC timestamp in 2000/01/01 00:00:00 format
   sig: zod.number(), // Signal quality in dBm
   batt: zod.number(), // Battery level in volts
   sol: zod.number(), // Solar panel input voltage in volts
   id: zod.number(), // ESP32 MAC address
+  utc: zod
+    .object({
+      year: zod.string(),
+      month: zod.string(),
+      day: zod.string(),
+      hour: zod.string(),
+      minute: zod.string(),
+      second: zod.string(),
+    })
+    .optional(),
 });
 
 const getBoatFromParam = async (
@@ -64,13 +73,28 @@ export const action = async ({
     return json({ message: "Invalid JSON" }, 400);
   }
   const validated = await validator.safeParse(payload);
-  if (!validated.success) return validated.error;
+  if (!validated.success)
+    return json(
+      {
+        ...validated.error,
+      },
+      400
+    );
 
+  const date = new Date();
+  if (validated.data.utc) {
+    date.setUTCFullYear(validated.data.utc.year);
+    date.setUTCMonth(validated.data.utc.month);
+    date.setUTCDate(validated.data.utc.day);
+    date.setUTCHours(validated.data.utc.hour);
+    date.setUTCMinutes(validated.data.utc.minute);
+    date.setUTCSeconds(validated.data.utc.second);
+  }
   const insertLogEntry = await db(context.cloudflare.env.DB)
     .insert(LogEntries)
     .values({
       boatId: boat.id,
-      timestamp: new Date(),
+      timestamp: date,
       source: "API - " + validated.data.id,
       latitude: validated.data.lat || null,
       longitude: validated.data.lon || null,

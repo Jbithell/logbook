@@ -496,7 +496,7 @@ void loop()
 
     Serial.print("Took ");
     Serial.print(millis() / 1000);
-    Serial.print(" seconds to get GPS fix");
+    Serial.println(" seconds to get GPS fix");
 
     SIM70xxRegStatus s = modem.getRegistrationStatus();
     if (s != REG_OK_HOME && s != REG_OK_ROAMING)
@@ -514,7 +514,12 @@ void loop()
             doc["lon"] = lon;
             doc["sogkts"] = speed;
             doc["alt"] = alt;
-            doc["utc"] = String(year) + "/" + String(month) + "/" + String(day) + " " + String(hour) + ":" + String(minute) + ":" + String(second);
+            doc["utc"]["year"] = String(year);
+            doc["utc"]["month"] = String(month);
+            doc["utc"]["day"] = String(day);
+            doc["utc"]["hour"] = String(hour);
+            doc["utc"]["minute"] = String(minute);
+            doc["utc"]["second"] = String(second);
         }
         doc["sig"] = signalQualityDBM();
         doc["batt"] = batteryLevel();
