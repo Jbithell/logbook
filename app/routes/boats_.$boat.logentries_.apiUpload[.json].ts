@@ -83,12 +83,12 @@ export const action = async ({
 
   const date = new Date();
   if (validated.data.utc) {
-    date.setUTCFullYear(validated.data.utc.year);
-    date.setUTCMonth(validated.data.utc.month);
-    date.setUTCDate(validated.data.utc.day);
-    date.setUTCHours(validated.data.utc.hour);
-    date.setUTCMinutes(validated.data.utc.minute);
-    date.setUTCSeconds(validated.data.utc.second);
+    date.setUTCFullYear(Number(validated.data.utc.year));
+    date.setUTCMonth(Number(validated.data.utc.month));
+    date.setUTCDate(Number(validated.data.utc.day));
+    date.setUTCHours(Number(validated.data.utc.hour));
+    date.setUTCMinutes(Number(validated.data.utc.minute));
+    date.setUTCSeconds(Number(validated.data.utc.second));
   }
   const insertLogEntry = await db(context.cloudflare.env.DB)
     .insert(LogEntries)
