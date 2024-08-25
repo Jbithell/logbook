@@ -22,7 +22,7 @@ const validator = zod.object({
   sig: zod.number(), // Signal quality in dBm
   batt: zod.number(), // Battery level in volts
   sol: zod.number(), // Solar panel input voltage in volts
-  id: zod.string(), // ESP32 MAC address
+  id: zod.number(), // ESP32 MAC address
 });
 
 const getBoatFromParam = async (
