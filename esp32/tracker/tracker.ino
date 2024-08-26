@@ -123,7 +123,7 @@ void sleep(int timeSeconds)
 
 uint8_t signalQualityDBM()
 {
-    // Returns signal quality in dBm
+    // Returns signal quality in dBm, but as a positive number. It should really be a negative number as 115 is the worst, and 52 is the best. 255 is an error. 
     int16_t sq = modem.getSignalQuality();
 
     if (sq == 0)
@@ -429,10 +429,17 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     EEPROM.get(8, retryCount);
     if (isnan(retryCount))
     {
+#ifdef DEBUG
+        Serial.print("Retry count not found in EEPROM");
+#endif
         retryCount = 0;
     }
     EEPROM.put(8, retryCount + 1);
     EEPROM.commit();
+#ifdef DEBUG
+    Serial.print("Put retry count in EEPROM as ");
+    Serial.println(retryCount + 1);
+#endif
 
     http.connectionKeepAlive(); // Needed for HTTPs
     // http.setHttpResponseTimeout(60000); // 60 seconds
@@ -718,7 +725,7 @@ void loop()
         Serial.print(distance);
         Serial.println(" meters");
 #endif
-        if (distance > 15) 
+        if (distance > 15)
         {
 // Moved more than 15 meters from last known location which suggests we're moving enough that we should try and send more data more quickly, and that its probably not a GPS error. If we're checking every 60 seconds then that equates to about 0.5knots of speed, which feels like a sensible enough threshold to ping a bit more
 #ifdef DEBUG

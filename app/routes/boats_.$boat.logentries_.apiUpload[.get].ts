@@ -15,7 +15,7 @@ const validator = zod.object({
   lon: zod.number().min(-181).max(180), // Longitude - accept -181 as a null
   sog: zod.number(), // Speed over ground in knots
   alt: zod.number(), // Altitude in meters
-  sig: zod.number(), // Signal quality in dBm
+  sig: zod.number(), // Signal quality in dBm, 
   bat: zod.number(), // Battery level in volts
   vlt: zod.number(), // Solar panel input voltage in volts
   id: zod.number(), // ESP32 MAC address

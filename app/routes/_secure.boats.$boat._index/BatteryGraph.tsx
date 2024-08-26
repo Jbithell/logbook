@@ -1,5 +1,7 @@
 import { ScatterChart, ScatterChartSeries } from "@mantine/charts";
 export const BatteryGraph = (props: { data: ScatterChartSeries[] }) => {
+  if (props.data.length === 0) return null;
+  if (props.data[0].data.length === 0) return null;
   const lowestX = props.data[0].data.reduce((prev, curr) =>
     prev.time < curr.time ? prev : curr
   );

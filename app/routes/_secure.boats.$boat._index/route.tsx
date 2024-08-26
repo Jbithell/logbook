@@ -1,4 +1,4 @@
-import { Table, Text } from "@mantine/core";
+import { Table, Text, Title } from "@mantine/core";
 import {
   json,
   LoaderFunctionArgs,
@@ -43,55 +43,96 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
 
 export default function App() {
   const data = useLoaderData<typeof loader>();
-  const batteryGraphData = data.boat.logEntries.flatMap((logEntry) => {
-    const observations = logEntry.observations as
-      | {
-          batt: { value: number };
-        }
-      | {};
-    if (
-      Object.keys(observations).length !== 0 &&
-      "batt" in observations &&
-      typeof observations.batt.value === "number" &&
-      observations.batt.value > 0
-    )
-      return [
-        {
-          time: new Date(logEntry.timestamp).getTime(),
-          batt: observations.batt.value,
-        },
-      ];
-    else return [];
-  });
-  const voltageGraphData = data.boat.logEntries.flatMap((logEntry) => {
-    const observations = logEntry.observations as
-      | {
-          sol: { value: number };
-        }
-      | {};
-    if (
-      Object.keys(observations).length !== 0 &&
-      "sol" in observations &&
-      typeof observations.sol.value === "number" &&
-      observations.sol.value > 0
-    )
-      return [
-        {
-          time: new Date(logEntry.timestamp).getTime(),
-          batt: observations.sol.value,
-        },
-      ];
-    else return [];
-  });
   return (
     <>
       <Text>Specific Boat {data.boat.name}</Text>
-      <BatteryGraph
-        data={[{ data: batteryGraphData, name: "Battery", color: "blue.5" }]}
-      />
+      <Title>Battery Voltage Graph</Title>
       <BatteryGraph
         data={[
-          { data: voltageGraphData, name: "Input Voltage", color: "blue.5" },
+          {
+            data: data.boat.logEntries.flatMap((logEntry) => {
+              const observations = logEntry.observations as
+                | {
+                    batt: { value: number };
+                  }
+                | {};
+              if (
+                Object.keys(observations).length !== 0 &&
+                "batt" in observations &&
+                typeof observations.batt.value === "number" &&
+                observations.batt.value > 0
+              )
+                return [
+                  {
+                    time: new Date(logEntry.timestamp).getTime(),
+                    batt: observations.batt.value,
+                  },
+                ];
+              else return [];
+            }),
+            name: "Battery",
+            color: "blue.5",
+          },
+        ]}
+      />
+      <Title>Input ("Solar") Voltage Graph</Title>
+      <BatteryGraph
+        data={[
+          {
+            data: data.boat.logEntries.flatMap((logEntry) => {
+              const observations = logEntry.observations as
+                | {
+                    sol: { value: number };
+                  }
+                | {};
+              if (
+                Object.keys(observations).length !== 0 &&
+                "sol" in observations &&
+                typeof observations.sol.value === "number" &&
+                observations.sol.value > 0
+              )
+                return [
+                  {
+                    time: new Date(logEntry.timestamp).getTime(),
+                    batt: observations.sol.value,
+                  },
+                ];
+              else return [];
+            }),
+            name: "Input Voltage",
+            color: "blue.5",
+          },
+        ]}
+      />
+      <Title>Signal Strength Graph</Title>
+      <BatteryGraph
+        data={[
+          {
+            data: data.boat.logEntries.flatMap((logEntry) => {
+              const observations = logEntry.observations as
+                | {
+                    sig: { value: number };
+                  }
+                | {};
+              if (
+                Object.keys(observations).length !== 0 &&
+                "sig" in observations &&
+                typeof observations.sig.value === "number" &&
+                observations.sig.value !== 255
+              )
+                return [
+                  {
+                    time: new Date(logEntry.timestamp).getTime(),
+                    batt: Math.round(
+                      ((observations.sig.value * -1 + 115) / 63) * 100
+                    ),
+                  },
+                ];
+              else return [];
+            }),
+            name: "Signal Strength",
+            color: "blue.5",
+          },
         ]}
       />
       <Table>
