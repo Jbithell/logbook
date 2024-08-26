@@ -1,4 +1,6 @@
 // https://cdn.geekfactory.mx/sim7000g/SIM7000%20Series_AT%20Command%20Manual_V1.06.pdf
+#define HTTPSSERVER "logbook-1oi.pages.dev"
+#define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
 
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
 #define SerialMon Serial
@@ -30,11 +32,6 @@ TinyGsm modem(debugger);
 #else
 TinyGsm modem(SerialAT);
 #endif
-
-#define HTTPSSERVER "logbook-1oi.pages.dev"
-#define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
-
-TinyGsmClientSecure client(modem);
 
 #define TIME_TO_SLEEP 60        // Time (in seconds) to sleep between readings normally
 #define TIME_TO_SLEEP_NOGPS 300 // Time (in seconds) to sleep between readings if we can't get a GPS fix
@@ -107,7 +104,6 @@ void modemRestart()
 void sleep(int timeSeconds)
 {
     modemPowerOff();
-    digitalWrite(LED_PIN, LOW);
     esp_sleep_enable_timer_wakeup(timeSeconds * 1000000ULL); // Conversion factor for micro seconds to seconds
     delay(200);
     esp_deep_sleep_start();
@@ -179,6 +175,8 @@ void setup()
     }
 
     modemPowerOn();
+
+    modem.restart();
     /*
     // Setup the micro SD card
     SPI.begin(SD_SCLK, SD_MISO, SD_MOSI);
@@ -365,8 +363,9 @@ void setup()
 bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second)
 {
     Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
-    HttpClient http(client, HTTPSSERVER, 443);
-    http.connectionKeepAlive();          // Needed for HTTPs
+    TinyGsmClientSecure clientSSL(modem, 0);
+    HttpClient http(clientSSL, HTTPSSERVER, 443);
+    http.connectionKeepAlive();         // Needed for HTTPs
     http.setHttpResponseTimeout(60000); // 60 seconds
     int requestStart = millis();
     String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac());
@@ -402,15 +401,15 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
         return false;
     }
 
-    http.skipResponseHeaders();
+    //http.skipResponseHeaders();
 
-    /*Serial.println(F("Response Headers:"));
+    Serial.println(F("Response Headers:"));
     while (http.headerAvailable())
     {
         String headerName = http.readHeaderName();
         String headerValue = http.readHeaderValue();
         Serial.println("    " + headerName + " : " + headerValue);
-    }*/
+    }
 
     /*
     int length = http.contentLength();
@@ -442,10 +441,9 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.println(" seconds");
     return true;
 }
-
+/*
 bool httpsPutRequest(String json)
 {
-    /* Couldn't get this working */
     Serial.print(F("Performing HTTPS PUT request to upload... "));
     HttpClient http(client, HTTPSSERVER, 443);
     http.connectionKeepAlive(); // Needed for HTTPs
@@ -453,13 +451,6 @@ bool httpsPutRequest(String json)
     int err = http.put(HTTPSPATH, "application/json", json);
     if (err != 0)
     {
-        /*
-          HTTP_SUCCESS =0;
-          HTTP_ERROR_CONNECTION_FAILED =-1;
-          HTTP_ERROR_API =-2;
-          HTTP_ERROR_TIMED_OUT =-3;
-          HTTP_ERROR_INVALID_RESPONSE =-4;
-        */
         Serial.print(err);
         Serial.println(F(" failed to connect"));
         http.stop();
@@ -510,7 +501,7 @@ bool httpsPutRequest(String json)
     // Shutdown
     http.stop();
     return true;
-}
+}*/
 
 void loop()
 {
@@ -580,12 +571,14 @@ void loop()
 
             break;
         }
-        // Flash the blue LED every 2 seconds whilst hunting location
+        // Flash the blue LED every 0.5 seconds whilst hunting location
         digitalWrite(LED_PIN, !digitalRead(LED_PIN));
-        delay(2000);
+        delay(500);
     }
 
     disableGPS();
+
+    digitalWrite(LED_PIN, HIGH); // Go high once we've finished hunting for GPS
 
     Serial.print("Took ");
     Serial.print(millis() / 1000);
@@ -647,6 +640,8 @@ void loop()
 
     Serial.print("Cycle complete: ");
     Serial.println(millis() / 1000);
+    digitalWrite(LED_PIN, LOW); // Go low as we drift off to sleep
+
     // GO TO SLEEP
 
     if (!foundGPS)
