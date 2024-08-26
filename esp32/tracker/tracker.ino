@@ -123,7 +123,7 @@ void sleep(int timeSeconds)
 
 uint8_t signalQualityDBM()
 {
-    // Returns signal quality in dBm, but as a positive number. It should really be a negative number as 115 is the worst, and 52 is the best. 255 is an error. 
+    // Returns signal quality in dBm, but as a positive number. It should really be a negative number as 115 is the worst, and 52 is the best. 255 is an error.
     int16_t sq = modem.getSignalQuality();
 
     if (sq == 0)
@@ -189,8 +189,8 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
 
-    if (!EEPROM.begin(10))
-    { // Allow it to be up to 10 bytes - two floats for location plus an int for retry count
+    if (!EEPROM.begin(12))
+    { // Allow it to be up to 12 bytes - two floats for location plus an int for retry count
 #ifdef DEBUG
         Serial.println("EEPROM failed to initialise");
 #endif
@@ -425,26 +425,33 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
 #endif
     // Update the retry count
-    int retryCount = 0;
-    EEPROM.get(8, retryCount);
-    if (isnan(retryCount))
+    int eepromRetryCount = 0;
+    EEPROM.get(8, eepromRetryCount);
+    if (isnan(eepromRetryCount))
     {
 #ifdef DEBUG
         Serial.print("Retry count not found in EEPROM");
 #endif
-        retryCount = 0;
+        eepromRetryCount = 0;
     }
-    EEPROM.put(8, retryCount + 1);
+#ifdef DEBUG
+    else
+    {
+        Serial.print("Retry count found in EEPROM as ");
+        Serial.println(eepromRetryCount);
+    }
+#endif
+    EEPROM.put(8, eepromRetryCount + 1);
     EEPROM.commit();
 #ifdef DEBUG
     Serial.print("Put retry count in EEPROM as ");
-    Serial.println(retryCount + 1);
+    Serial.println(eepromRetryCount + 1);
 #endif
 
     http.connectionKeepAlive(); // Needed for HTTPs
     // http.setHttpResponseTimeout(60000); // 60 seconds
     int requestStart = millis();
-    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()) + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(retryCount) + "&ver=" + String(SOFTWARE_VERSION);
+    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()) + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(eepromRetryCount) + "&ver=" + String(SOFTWARE_VERSION);
 #ifdef DEBUG
     Serial.println(url);
 #endif
@@ -529,6 +536,9 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.println(" seconds");
 #endif
 
+#ifdef DEBUG
+    Serial.println("Reset the retry count in EEPROM");
+#endif
     // Reset the retry count
     EEPROM.put(8, 0);
     EEPROM.commit();
@@ -813,10 +823,18 @@ void loop()
     digitalWrite(LED_PIN, LOW); // Go low as we drift off to sleep
     if (sleepTime > 0)
     {
+#ifdef DEBUG
+        Serial.print("Sleeping for: ");
+        Serial.println(sleepTime);
+#endif
         sleep(sleepTime);
     }
     else
     {
+#ifdef DEBUG
+        Serial.print("Delaying for: ");
+        Serial.println(delayTime);
+#endif
         delay(delayTime * 1000);
     }
 }
