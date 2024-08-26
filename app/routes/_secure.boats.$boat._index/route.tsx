@@ -154,7 +154,7 @@ export default function App() {
               if (
                 Object.keys(observations).length !== 0 &&
                 "trackerMeta" in observations &&
-                "sig" in observations.trackerMeta &&
+                "variance" in observations.trackerMeta &&
                 "value" in observations.trackerMeta.variance &&
                 typeof observations.trackerMeta.variance.value === "number" &&
                 observations.trackerMeta.variance.value !== 255
