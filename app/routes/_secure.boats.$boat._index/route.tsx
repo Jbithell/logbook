@@ -141,6 +141,36 @@ export default function App() {
           },
         ]}
       />
+      <Title>Timing Variance Graph</Title>
+      <BatteryGraph
+        data={[
+          {
+            data: data.boat.logEntries.flatMap((logEntry) => {
+              const observations = logEntry.observations as
+                | {
+                    trackerMeta: { variance: { seconds: number } };
+                  }
+                | {};
+              if (
+                Object.keys(observations).length !== 0 &&
+                "trackerMeta" in observations &&
+                "sig" in observations.trackerMeta &&
+                typeof observations.trackerMeta.variance.seconds === "number" &&
+                observations.trackerMeta.variance.seconds !== 255
+              )
+                return [
+                  {
+                    time: new Date(logEntry.timestamp).getTime(),
+                    batt: observations.trackerMeta.variance.seconds,
+                  },
+                ];
+              else return [];
+            }),
+            name: "Timing Variance",
+            color: "blue.5",
+          },
+        ]}
+      />
       <Table>
         <Table.Thead>
           <Table.Tr>
