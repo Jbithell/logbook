@@ -3,6 +3,8 @@
 #define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
 #define SOFTWARE_VERSION "1.0.0"
 #define APN "iot.1nce.net"
+#define DEBUG // Comment out to disable debugging
+// #define DUMP_AT_COMMANDS // Comment out to disable AT command debugging - which is the commands back and forth between the chip and the modem
 
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
 #define SerialMon Serial
@@ -16,7 +18,6 @@
 #define SerialAT Serial1
 
 // See all AT commands, if wanted
-// #define DUMP_AT_COMMANDS
 
 #include <TinyGsmClient.h> //Need to install https://github.com/vshymanskyy/TinyGSM v0.12.0
 #include <SPI.h>
@@ -66,7 +67,9 @@ void enableGPS(void)
     modem.sendAT("+CGPIO=0,48,1,1");
     if (modem.waitResponse(10000L) != 1)
     {
+#ifdef DEBUG
         Serial.println("Set GPS Power HIGH Failed - restarting");
+#endif
         ESP.restart();
     }
     modem.enableGPS();
@@ -79,7 +82,9 @@ void disableGPS(void)
     modem.sendAT("+CGPIO=0,48,1,0");
     if (modem.waitResponse(10000L) != 1)
     {
+#ifdef DEBUG
         Serial.println("Set GPS Power LOW Failed - restarting");
+#endif
         ESP.restart();
     }
     modem.disableGPS();
@@ -149,6 +154,31 @@ float solarVoltage()
     // When connecting USB, the battery detection will return 0,
     // because the adc detection circuit is disconnected when connecting USB
 }
+int distanceBetweenLatLongHaversine(float lat1, float lon1, float lat2, float lon2)
+{
+    // returns distance in meters between two positions, both specified
+    // as signed decimal-degrees latitude and longitude. Uses great-circle
+    // distance computation for hypothetical sphere of radius 6372795 meters.
+    // Because Earth is no exact sphere, rounding errors may be up to 0.5%.
+    // Courtesy of Maarten Lamers
+
+    float delta = radians(lon1 - lon2);
+    float sdlong = sin(delta);
+    float cdlong = cos(delta);
+    lat1 = radians(lat1);
+    lat2 = radians(lat2);
+    float slat1 = sin(lat1);
+    float clat1 = cos(lat1);
+    float slat2 = sin(lat2);
+    float clat2 = cos(lat2);
+    delta = (clat1 * slat2) - (slat1 * clat2 * cdlong);
+    delta = sq(delta);
+    delta += sq(clat2 * sdlong);
+    delta = sqrt(delta);
+    float denom = (slat1 * slat2) + (clat1 * clat2 * cdlong);
+    delta = atan2(delta, denom);
+    return int(delta * 6372795);
+}
 
 void setup()
 {
@@ -161,7 +191,10 @@ void setup()
 
     if (!EEPROM.begin(10))
     { // Allow it to be up to 10 bytes - two floats for location plus an int for retry count
+#ifdef DEBUG
         Serial.println("EEPROM failed to initialise");
+#endif
+        ESP.restart();
     }
 
     // Calibrate the battery & solar sensors
@@ -169,9 +202,12 @@ void setup()
     esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars); // Check type of calibration value used to characterize ADC
     if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF)
     {
+#ifdef DEBUG
         Serial.printf("eFuse Vref:%u mV", adc_chars.vref);
+#endif
         vref = adc_chars.vref;
     }
+#ifdef DEBUG
     else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP)
     {
         Serial.printf("Two Point --> coeff_a:%umV coeff_b:%umV\n", adc_chars.coeff_a, adc_chars.coeff_b);
@@ -180,6 +216,7 @@ void setup()
     {
         Serial.println("Default Vref: 1100mV");
     }
+#endif
 
     modemPowerOn();
 
@@ -199,37 +236,48 @@ void setup()
     delay(6000);
 
     modem.restart();
-
+#ifdef DEBUG
     Serial.println("> Check whether Modem is online");
+#endif
     // test modem is online ?
     uint32_t timeout = millis();
     while (!modem.testAT())
     {
+#ifdef DEBUG
         Serial.print(".");
+#endif
         if (millis() - timeout > 60000)
         {
+#ifdef DEBUG
             Serial.println("> It looks like the modem is not responding, trying to restart");
+#endif
             modemPowerOff();
             delay(5000);
             modemPowerOn();
             timeout = millis();
         }
     }
+#ifdef DEBUG
     Serial.println("\nModem is online");
+#endif
 
     // test sim card is online ?
     timeout = millis();
-    Serial.print("> Get SIM card status");
+#ifdef DEBUG
+    Serial.println("> Get SIM card status");
+#endif
     while (modem.getSimStatus() != SIM_READY)
     {
-        Serial.print(".");
         if (millis() - timeout > 60000)
         {
+#ifdef DEBUG
             Serial.println("It seems that your SIM card has not been detected. Has it been inserted?");
             Serial.println("If you have inserted the SIM card, please remove the power supply again and try again!");
+#endif
             return;
         }
     }
+#ifdef DEBUG
     Serial.println();
     Serial.println("> SIM card exists");
 
@@ -237,6 +285,7 @@ void setup()
     Serial.println("> Please make sure that the location has 2G/NB-IOT signal");
     Serial.println("> SIM7000/SIM707G does not support 4G network. Please ensure that the USIM card you use supports 2G/NB access");
     Serial.println("> /**********************************************************/");
+#endif
 
     /*
     String res = modem.getIMEI();
@@ -260,13 +309,8 @@ void setup()
     // 2 NB-IoT
     // 3 CAT-M and NB-IoT
     // Set network preferre to NB-IOT
-    uint8_t perferred = 3;
+    uint8_t perferred = 2;
     modem.setPreferredMode(perferred);
-
-    if (perferred == 2)
-    {
-        Serial.println("When you select 2, please ensure that your SIM card operator supports NB-IOT");
-    }
 
     // Args:
     // 2 Automatic
@@ -279,12 +323,11 @@ void setup()
     modem.sendAT(GF("+CAPNMODE="), 1);
     if (modem.waitResponse() != 1)
     {
+        // Can't if debug this out as otherwise causes a logic error as there's no code in the if statement
         Serial.println("> Could not set APN Mode to manual");
     }
     modem.gprsConnect(APN); // APN
 
-    // Check network signal and registration information
-    Serial.println("> SIM7000/SIM7070 uses automatic mode to access the network. The access speed may be slow. Please wait patiently");
     SIM70xxRegStatus status;
     timeout = millis();
     do
@@ -298,10 +341,12 @@ void setup()
         int16_t sq = modem.getSignalQuality();
 
         status = modem.getRegistrationStatus();
-
+#ifdef DEBUG
         if (status == REG_DENIED)
         {
+
             Serial.println("> The SIM card you use has been rejected by the network operator. Please check that the card you use is not bound to a device!");
+
             return;
         }
         else
@@ -309,14 +354,17 @@ void setup()
             Serial.print("Signal:");
             Serial.println(sq);
         }
+#endif
 
         if (millis() - timeout > 360000)
         {
             if (sq == 99)
             {
+#ifdef DEBUG
                 Serial.println("> It seems that there is no signal. Please check whether the"
                                "LTE antenna is connected. Please make sure that the location has 2G/NB-IOT signal\n"
                                "SIM7000G does not support 4G network. Please ensure that the USIM card you use supports 2G/NB access");
+#endif
                 return;
             }
             timeout = millis();
@@ -366,13 +414,16 @@ void setup()
         Serial.println(res);
     }
     */
+#ifdef DEBUG
     Serial.println("Network has booted");
+#endif
 }
 
 bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second, int sleepTime, int delayTime)
 {
+#ifdef DEBUG
     Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
-
+#endif
     // Update the retry count
     int retryCount = 0;
     EEPROM.get(8, retryCount);
@@ -387,7 +438,9 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     // http.setHttpResponseTimeout(60000); // 60 seconds
     int requestStart = millis();
     String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()) + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(retryCount) + "&ver=" + String(SOFTWARE_VERSION);
+#ifdef DEBUG
     Serial.println(url);
+#endif
     int err = http.get(url);
     if (err != 0)
     {
@@ -398,15 +451,19 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
           HTTP_ERROR_TIMED_OUT =-3;
           HTTP_ERROR_INVALID_RESPONSE =-4;
         */
+#ifdef DEBUG
         Serial.print(err);
         Serial.println(F(" failed to connect"));
+#endif
         http.stop();
         return false;
     }
 
     int status = http.responseStatusCode();
+#ifdef DEBUG
     Serial.print(F("Response status code: "));
     Serial.println(status);
+#endif
     if (!status)
     {
         http.stop();
@@ -420,16 +477,20 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     }
 
     // http.skipResponseHeaders();
-
+#ifdef DEBUG
     Serial.println(F("Response Headers:"));
+#endif
     while (http.headerAvailable())
     {
         String headerName = http.readHeaderName();
         String headerValue = http.readHeaderValue();
+#ifdef DEBUG
         Serial.println("    " + headerName + " : " + headerValue);
+#endif
     }
 
     int length = http.contentLength();
+#ifdef DEBUG
     if (length >= 0)
     {
         Serial.print(F("Content length is: "));
@@ -439,6 +500,7 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     {
         Serial.println(F("The response is chunked"));
     }
+#endif
     /*
     String body = http.responseBody();
     Serial.println(F("Response:"));
@@ -448,14 +510,17 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.println(body.length());*/
 
     String body = http.responseBody(); // You need to read the body to clear the buffer, if you don't it'll break subsequent requests
+#ifdef DEBUG
     Serial.println(body);
-
+#endif
     // Shutdown
     http.stop();
 
+#ifdef DEBUG
     Serial.print("HTTPs GET Request took ");
     Serial.print((millis() - requestStart) / 1000);
     Serial.println(" seconds");
+#endif
 
     // Reset the retry count
     EEPROM.put(8, 0);
@@ -535,17 +600,23 @@ void loop()
     //     SerialAT.write(Serial.read());
     // }
 
-    Serial.print("Powered On - timestamp: ");
+#ifdef DEBUG
+    Serial.print("Started main loop - timestamp: ");
     Serial.println(millis() / 1000);
+#endif
 
     float eepromLat, eepromLon;
-    Serial.println(EEPROM.get(0, eepromLat), 6);
-    Serial.println(EEPROM.get(4, eepromLon), 6);
-
+    EEPROM.get(0, eepromLat);
+    EEPROM.get(4, eepromLon);
+#ifdef DEBUG
+    Serial.println(eepromLat, 6);
+    Serial.println(eepromLon, 6);
+#endif
     enableGPS();
 
+#ifdef DEBUG
     Serial.println("Acquiring GPS");
-
+#endif
     int startedAcquiringGPS = millis();
 
     float lat, lon, speed, alt, accuracy;
@@ -555,6 +626,7 @@ void loop()
     { // Only wait 5 minutes
         if (modem.getGPS(&lat, &lon, &speed, &alt, &vsat, &usat, &accuracy, &year, &month, &day, &hour, &minute, &second))
         {
+#ifdef DEBUG
             Serial.println("The location has been locked, the latitude and longitude are:");
             Serial.print("latitude:");
             Serial.println(lat, 6);
@@ -582,8 +654,8 @@ void loop()
             Serial.println(minute);
             Serial.print("UTCsecond:");
             Serial.println(second);
-            // String rawGps = modem.getGPSraw();
-            // Serial.println(rawGps);
+#endif
+
             foundGPS = true;
 
             // TODO get this working
@@ -601,11 +673,11 @@ void loop()
     disableGPS();
 
     digitalWrite(LED_PIN, HIGH); // Go high once we've finished hunting for GPS
-
+#ifdef DEBUG
     Serial.print("Took ");
     Serial.print(millis() / 1000);
     Serial.println(" seconds to get GPS fix");
-
+#endif
     /**
      * Calculate the sleep time that would be appropriate for the next loop
      */
@@ -614,57 +686,66 @@ void loop()
     float solarVoltageValue = solarVoltage();
     if (!foundGPS)
     {
-        // If we didn't get a GPS fix, sleep for 5 minutes - even if the solar panel is charging. We might be inside a bag or something odd
+// If we didn't get a GPS fix, sleep for 5 minutes - even if the solar panel is charging. We might be inside a bag or something odd
+#ifdef DEBUG
         Serial.print("On the basis of no GPS, setting SLEEP timer for ");
         Serial.println(TIME_TO_SLEEP_NOGPS);
+#endif
         sleepTime = TIME_TO_SLEEP_NOGPS;
     }
     else if (isnan(eepromLat) || isnan(eepromLon))
     {
-        // Has never had a fix, so might as well just stay awake and go round again straight away - its first boot basically
+// Has never had a fix, so might as well just stay awake and go round again straight away - its first boot basically
+#ifdef DEBUG
         Serial.println("No previous GPS fix, so won't sleep on this cycle");
+#endif
         delayTime = 1;
     }
     else if (solarVoltageValue > 0.1)
     {
-        // If we're charging, don't sleep, we'll assume power is unlimited and free
+// If we're charging, don't sleep, we'll assume power is unlimited and free
+#ifdef DEBUG
         Serial.print("Charging, so going to set DELAY timer for ");
         Serial.println(TIME_TO_SLEEP);
-        delayTime = TIME_TO_SLEEP;
-    }
-    else if (String(eepromLat, 4) != String(lat, 4) || String(eepromLon, 4) != String(lon, 4)) // Do the comparison with strings because its a bit easier
-    {
-        /*
-        Decimal Places  	Degrees 	Distance
-        0	1.0	                        111 km
-        1	0.1	                        11.1 km
-        2	0.01	                    1.11 km
-        3	0.001	                    111 m
-        4	0.0001	                    11.1 m
-        5	0.00001	                    1.11 m
-        6	0.000001	                111 mm
-        7	0.0000001	                11.1 mm
-        8	0.00000001	                1.11 mm // This is the default for this chip
-        */
-        // If we're here, we've moved more than 11.1m from the last known location which suggests we're moving enough that we should try and send more data more quickly, and that its probably not a GPS error
-        Serial.print("Moved more than 11.1m since last GPS fix, so using up a bit more battery to stay awake data more frequently. Setting a SLEEP timer for ");
-        Serial.print(TIME_TO_SLEEP);
-        Serial.println(" seconds");
+#endif
         delayTime = TIME_TO_SLEEP;
     }
     else
     {
-        // We're not moving and we're not charging, so lets rein back in the battery usage
-        Serial.print("Moved less than 11.1m, so going for a longer SLEEP timer ");
-        Serial.print(TIME_TO_SLEEP_BATT);
-        Serial.println(" seconds");
-        sleepTime = TIME_TO_SLEEP_BATT;
+        int distance = distanceBetweenLatLongHaversine(eepromLat, eepromLon, lat, lon);
+#ifdef DEBUG
+        Serial.print("Distance between this latlong and previous latlong calculated as ");
+        Serial.print(distance);
+        Serial.println(" meters");
+#endif
+        if (distance > 15) 
+        {
+// Moved more than 15 meters from last known location which suggests we're moving enough that we should try and send more data more quickly, and that its probably not a GPS error. If we're checking every 60 seconds then that equates to about 0.5knots of speed, which feels like a sensible enough threshold to ping a bit more
+#ifdef DEBUG
+            Serial.print("Moved more than 15m since last GPS fix, so using up a bit more battery to stay awake data more frequently. Setting a SLEEP timer for ");
+            Serial.print(TIME_TO_SLEEP);
+            Serial.println(" seconds");
+#endif
+            sleepTime = TIME_TO_SLEEP;
+        }
+        else
+        {
+// We're not moving and we're not charging, so lets rein back in the battery usage
+#ifdef DEBUG
+            Serial.print("Moved less than 15m, so going for a longer SLEEP timer ");
+            Serial.print(TIME_TO_SLEEP_BATT);
+            Serial.println(" seconds");
+#endif
+            sleepTime = TIME_TO_SLEEP_BATT;
+        }
     }
 
     SIM70xxRegStatus s = modem.getRegistrationStatus();
     if (s != REG_OK_HOME && s != REG_OK_ROAMING)
     {
+#ifdef DEBUG
         Serial.println("Devices lost network connect!");
+#endif
         ESP.restart();
     }
     else
@@ -672,7 +753,9 @@ void loop()
         int retryCount = 0;
         while (retryCount < 3)
         {
+#ifdef DEBUG
             Serial.println("Sending data to server");
+#endif
             if (foundGPS)
             {
                 if (httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second, sleepTime, delayTime))
@@ -716,8 +799,10 @@ void loop()
         */
     }
 
+#ifdef DEBUG
     Serial.print("Cycle complete: ");
     Serial.println(millis() / 1000);
+#endif
     digitalWrite(LED_PIN, LOW); // Go low as we drift off to sleep
     if (sleepTime > 0)
     {
