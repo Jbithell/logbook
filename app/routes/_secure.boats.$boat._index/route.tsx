@@ -52,7 +52,8 @@ export default function App() {
     if (
       Object.keys(observations).length !== 0 &&
       "batt" in observations &&
-      typeof observations.batt.value === "number"
+      typeof observations.batt.value === "number" &&
+      observations.batt.value > 0
     )
       return [
         {
@@ -71,7 +72,8 @@ export default function App() {
     if (
       Object.keys(observations).length !== 0 &&
       "sol" in observations &&
-      typeof observations.sol.value === "number"
+      typeof observations.sol.value === "number" &&
+      observations.sol.value > 0
     )
       return [
         {
