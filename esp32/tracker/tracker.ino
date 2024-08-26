@@ -2,6 +2,8 @@
 #define HTTPSSERVER "logbook-1oi.pages.dev"
 #define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
 #define SOFTWARE_VERSION "1.0.0"
+#define APN "iot.1nce.net"
+
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
 #define SerialMon Serial
 
@@ -14,7 +16,7 @@
 #define SerialAT Serial1
 
 // See all AT commands, if wanted
-#define DUMP_AT_COMMANDS
+// #define DUMP_AT_COMMANDS
 
 #include <TinyGsmClient.h> //Need to install https://github.com/vshymanskyy/TinyGSM v0.12.0
 #include <SPI.h>
@@ -33,11 +35,14 @@ TinyGsm modem(debugger);
 TinyGsm modem(SerialAT);
 #endif
 
+TinyGsmClientSecure client(modem);
+HttpClient http(client, HTTPSSERVER, 443);
+
 #define TIME_TO_SLEEP 60        // Time (in seconds) to sleep between readings normally
 #define TIME_TO_SLEEP_NOGPS 300 // Time (in seconds) to sleep between readings if we can't get a GPS fix
 #define TIME_TO_SLEEP_BATT 600  // Time (in seconds) to sleep between readings if we're on battery, not moving and trying to save battery
 
-#define UART_BAUD 9600
+#define UART_BAUD 115200
 #define PIN_DTR 25
 #define PIN_TX 27
 #define PIN_RX 26
@@ -178,9 +183,6 @@ void setup()
 
     modemPowerOn();
 
-    SerialAT.begin(UART_BAUD, SERIAL_8N1, PIN_RX, PIN_TX);
-
-    modem.restart();
     /*
     // Setup the micro SD card
     SPI.begin(SD_SCLK, SD_MISO, SD_MOSI);
@@ -192,6 +194,11 @@ void setup()
         Serial.println(str);
     }
     */
+
+    SerialAT.begin(UART_BAUD, SERIAL_8N1, PIN_RX, PIN_TX);
+    delay(6000);
+
+    modem.restart();
 
     Serial.println("> Check whether Modem is online");
     // test modem is online ?
@@ -274,7 +281,7 @@ void setup()
     {
         Serial.println("> Could not set APN Mode to manual");
     }
-    modem.gprsConnect("iot.1nce.net"); // APN
+    modem.gprsConnect(APN); // APN
 
     // Check network signal and registration information
     Serial.println("> SIM7000/SIM7070 uses automatic mode to access the network. The access speed may be slow. Please wait patiently");
@@ -328,12 +335,12 @@ void setup()
         res.replace("OK", "");
         Serial.print("The APN issued by the network is:");
         Serial.println(res);
-    }*/
+    }
 
-    modem.sendAT("+CNACT=1");
-    modem.waitResponse();
+    //modem.sendAT("+CNACT=1");
+    //modem.waitResponse();
 
-    /*
+
     // res = modem.getLocalIP();
     modem.sendAT("+CNACT?");
     if (modem.waitResponse("+CNACT: ") == 1) {
@@ -364,6 +371,8 @@ void setup()
 
 bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second, int sleepTime, int delayTime)
 {
+    Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
+
     // Update the retry count
     int retryCount = 0;
     EEPROM.get(8, retryCount);
@@ -374,16 +383,10 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     EEPROM.put(8, retryCount + 1);
     EEPROM.commit();
 
-    Serial.print("Performing HTTPS GET request to upload on a 60 second timeout for the ");
-    Serial.print(retryCount);
-    Serial.println(" time");
-
-    TinyGsmClientSecure clientSSL(modem, 0);
-    HttpClient http(clientSSL, HTTPSSERVER, 443);
-    http.connectionKeepAlive();         // Needed for HTTPs
-    http.setHttpResponseTimeout(60000); // 60 seconds
+    http.connectionKeepAlive(); // Needed for HTTPs
+    // http.setHttpResponseTimeout(60000); // 60 seconds
     int requestStart = millis();
-    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac() + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(retryCount) + "&ver=" + String(SOFTWARE_VERSION));
+    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac()) + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(retryCount) + "&ver=" + String(SOFTWARE_VERSION);
     Serial.println(url);
     int err = http.get(url);
     if (err != 0)
@@ -426,7 +429,6 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
         Serial.println("    " + headerName + " : " + headerValue);
     }
 
-    /*
     int length = http.contentLength();
     if (length >= 0)
     {
@@ -437,7 +439,7 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     {
         Serial.println(F("The response is chunked"));
     }
-
+    /*
     String body = http.responseBody();
     Serial.println(F("Response:"));
     Serial.println(body);
@@ -663,11 +665,6 @@ void loop()
     if (s != REG_OK_HOME && s != REG_OK_ROAMING)
     {
         Serial.println("Devices lost network connect!");
-        ESP.restart();
-    }
-    else if (!modem.isNetworkConnected())
-    {
-        Serial.println("Device not connected to network");
         ESP.restart();
     }
     else
