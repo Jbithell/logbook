@@ -16,7 +16,7 @@ export const AuthSessions = sqliteTable(
     userId: integer("user", { mode: "number" })
       .notNull()
       .references(() => Users.id, { onUpdate: "cascade", onDelete: "cascade" }),
-    createdAt: text("created_at").$defaultFn(() => sql`CURRENT_TIMESTAMP`),
+    createdAt: text("created_at").$defaultFn(() => sql`(unixepoch())`),
     valid: integer("valid", { mode: "boolean" }).$default(() => true),
   },
   (table) => {

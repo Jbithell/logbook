@@ -18,14 +18,14 @@ export const LogEntries = sqliteTable(
       .references(() => Boats.id, { onUpdate: "cascade", onDelete: "cascade" }),
     timestamp: integer("timestamp", { mode: "timestamp" })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
+      .default(sql`(unixepoch())`),
     created: integer("created", { mode: "timestamp" })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`),
+      .default(sql`(unixepoch())`),
     updated: integer("updated", { mode: "timestamp" })
       .notNull()
-      .default(sql`CURRENT_TIMESTAMP`)
-      .$onUpdate(() => sql`CURRENT_TIMESTAMP`),
+      .default(sql`(unixepoch())`)
+      .$onUpdate(() => sql`(unixepoch())`),
     source: text("source").notNull(),
     userId: integer("user", { mode: "number" })
       .references(() => Users.id, {
