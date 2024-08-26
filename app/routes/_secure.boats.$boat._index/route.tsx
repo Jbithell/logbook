@@ -62,11 +62,35 @@ export default function App() {
       ];
     else return [];
   });
+  const voltageGraphData = data.boat.logEntries.flatMap((logEntry) => {
+    const observations = logEntry.observations as
+      | {
+          sol: { value: number };
+        }
+      | {};
+    if (
+      Object.keys(observations).length !== 0 &&
+      "sol" in observations &&
+      typeof observations.sol.value === "number"
+    )
+      return [
+        {
+          time: new Date(logEntry.timestamp).getTime(),
+          batt: observations.sol.value,
+        },
+      ];
+    else return [];
+  });
   return (
     <>
       <Text>Specific Boat {data.boat.name}</Text>
       <BatteryGraph
         data={[{ data: batteryGraphData, name: "Battery", color: "blue.5" }]}
+      />
+      <BatteryGraph
+        data={[
+          { data: voltageGraphData, name: "Input Voltage", color: "blue.5" },
+        ]}
       />
       <Table>
         <Table.Thead>
