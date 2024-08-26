@@ -14,7 +14,7 @@
 #define SerialAT Serial1
 
 // See all AT commands, if wanted
-// #define DUMP_AT_COMMANDS
+#define DUMP_AT_COMMANDS
 
 #include <TinyGsmClient.h> //Need to install https://github.com/vshymanskyy/TinyGSM v0.12.0
 #include <SPI.h>
@@ -178,6 +178,8 @@ void setup()
 
     modemPowerOn();
 
+    SerialAT.begin(UART_BAUD, SERIAL_8N1, PIN_RX, PIN_TX);
+
     modem.restart();
     /*
     // Setup the micro SD card
@@ -190,8 +192,6 @@ void setup()
         Serial.println(str);
     }
     */
-
-    SerialAT.begin(UART_BAUD, SERIAL_8N1, PIN_RX, PIN_TX);
 
     Serial.println("> Check whether Modem is online");
     // test modem is online ?
@@ -364,8 +364,6 @@ void setup()
 
 bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second, int sleepTime, int delayTime)
 {
-    Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
-
     // Update the retry count
     int retryCount = 0;
     EEPROM.get(8, retryCount);
@@ -375,6 +373,10 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     }
     EEPROM.put(8, retryCount + 1);
     EEPROM.commit();
+
+    Serial.print("Performing HTTPS GET request to upload on a 60 second timeout for the ");
+    Serial.print(retryCount);
+    Serial.println(" time");
 
     TinyGsmClientSecure clientSSL(modem, 0);
     HttpClient http(clientSSL, HTTPSSERVER, 443);
@@ -661,6 +663,11 @@ void loop()
     if (s != REG_OK_HOME && s != REG_OK_ROAMING)
     {
         Serial.println("Devices lost network connect!");
+        ESP.restart();
+    }
+    else if (!modem.isNetworkConnected())
+    {
+        Serial.println("Device not connected to network");
         ESP.restart();
     }
     else
