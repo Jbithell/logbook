@@ -1,9 +1,9 @@
 // https://cdn.geekfactory.mx/sim7000g/SIM7000%20Series_AT%20Command%20Manual_V1.06.pdf
 #define HTTPSSERVER "logbook-1oi.pages.dev"
-#define HTTPSPATH "/trackers/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
+#define HTTPSPATH "/trackers/UUID/logentries/apiUpload.get"
 #define SOFTWARE_VERSION "1.0.0"
 #define APN "iot.1nce.net"
-#define DEBUG // Comment out to disable debugging
+// #define DEBUG // Comment out to disable debugging
 // #define DUMP_AT_COMMANDS // Comment out to disable AT command debugging - which is the commands back and forth between the chip and the modem
 
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
