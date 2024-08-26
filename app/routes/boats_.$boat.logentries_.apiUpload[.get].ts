@@ -86,6 +86,10 @@ export const loader = async ({
     h: Number(searchParams.get("h")),
     m: Number(searchParams.get("m")),
     s: Number(searchParams.get("s")),
+    slp: Number(searchParams.get("slp")),
+    dly: Number(searchParams.get("dly")),
+    rty: Number(searchParams.get("rty")),
+    ver: searchParams.get("ver"),
   });
   if (!validated.success)
     return json(
