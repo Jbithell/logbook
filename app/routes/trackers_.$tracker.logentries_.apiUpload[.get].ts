@@ -6,8 +6,8 @@ import {
 import { Params } from "@remix-run/react";
 import { eq } from "drizzle-orm";
 import { z as zod } from "zod";
-import { Boats } from "~/db/schema/Boats";
 import { LogEntries } from "~/db/schema/LogEntries";
+import { Trackers } from "~/db/schema/Trackers";
 import { db } from "../d1client.server";
 
 const validator = zod.object({
@@ -15,7 +15,7 @@ const validator = zod.object({
   lon: zod.number().min(-181).max(180), // Longitude - accept -181 as a null
   sog: zod.number(), // Speed over ground in knots
   alt: zod.number(), // Altitude in meters
-  sig: zod.number(), // Signal quality in dBm, 
+  sig: zod.number(), // Signal quality in dBm,
   bat: zod.number(), // Battery level in volts
   vlt: zod.number(), // Solar panel input voltage in volts
   id: zod.number(), // ESP32 MAC address
@@ -31,24 +31,37 @@ const validator = zod.object({
   ver: zod.string(), // Firmware version
 });
 
-const getBoatFromParam = async (
+const getTrackerAndBoatFromParam = async (
   params: Params<string>,
   context: AppLoadContext
 ) => {
   if (
-    typeof params.boat === "undefined" ||
-    params.boat === null ||
-    params.boat.length !== 21
+    typeof params.tracker === "undefined" ||
+    params.tracker === null ||
+    params.tracker.length !== 21
   )
-    throw json({ message: "No boat found" }, 404);
-  const boat = await db(context.cloudflare.env.DB).query.Boats.findFirst({
+    throw json({ message: "No tracker specified" }, 404);
+  const tracker = await db(context.cloudflare.env.DB).query.Trackers.findFirst({
     columns: {
-      name: true,
       id: true,
+      expectedNextCheckIn: true,
     },
-    where: eq(Boats.uuid, params.boat),
+    with: {
+      boat: {
+        columns: {
+          id: true,
+        },
+      },
+    },
+    where: eq(Trackers.uuid, params.tracker),
   });
-  return boat;
+  if (!tracker?.boat.id || !tracker?.id)
+    throw json({ message: "Unknown Boat or Tracker" }, 404);
+  return {
+    boatId: tracker.boat.id,
+    trackerId: tracker.id,
+    trackerNextCheckIn: tracker.expectedNextCheckIn,
+  };
 };
 
 export const loader = async ({
@@ -61,11 +74,11 @@ export const loader = async ({
    * IN ORDER TO SUPPORT THE USE OF THE SEARCH PARAMS
    * BECAUSE THAT'S ALL THE ARDUNIO CAN COPE WITH
    */
-  const boat = await getBoatFromParam(params, context);
+  const tracker = await getTrackerAndBoatFromParam(params, context);
   const url = new URL(request.url);
   const searchParams = url.searchParams;
-  if (typeof params.boat === "undefined" || boat === null || !boat)
-    return json({ message: "Unknown boat" }, 404);
+  if (typeof params.tracker === "undefined" || tracker === null || !tracker)
+    return json({ message: "Unknown Boat or Tracker" }, 404);
 
   if (request.method !== "GET")
     return json({ message: "Method not allowed" }, 405);
@@ -108,10 +121,25 @@ export const loader = async ({
     date.setUTCMinutes(Number(validated.data.m));
     date.setUTCSeconds(Number(validated.data.s));
   }
+
+  // Calculate the expected next check-in time, and set it in the database
+  const expectedNextCheckIn = new Date(
+    new Date().getTime() +
+      (validated.data.dly !== 0 ? validated.data.dly : validated.data.slp) *
+        1000
+  );
+  const updateTracker = await db(context.cloudflare.env.DB)
+    .update(Trackers)
+    .set({
+      expectedNextCheckIn,
+    })
+    .where(eq(Trackers.id, tracker.trackerId));
+  if (updateTracker.error) return json({ message: updateTracker.error }, 500);
   const insertLogEntry = await db(context.cloudflare.env.DB)
     .insert(LogEntries)
     .values({
-      boatId: boat.id,
+      boatId: tracker.boatId,
+      trackerId: tracker.trackerId,
       timestamp: date,
       source: "API - " + validated.data.id,
       latitude: validated.data.lat >= -90 ? validated.data.lat : null,
@@ -129,40 +157,54 @@ export const loader = async ({
             title: "Altitude",
           },
         }),
-        sig: {
-          value: validated.data.sig,
-          unit: "dBm",
-          title: "Mobile signal quality",
-        },
-        batt: {
-          value: validated.data.bat,
-          unit: "V",
-          title: "Battery level",
-        },
-        sol: {
-          value: validated.data.vlt,
-          unit: "V",
-          title: "Input voltage",
-        },
-        delay: {
-          seconds: validated.data.dly,
-          title: "Delay",
-          unit: "seconds",
-        },
-        sleep: {
-          seconds: validated.data.slp,
-          title: "Sleep",
-          unit: "seconds",
-        },
-        retry: {
-          count: validated.data.rty,
-          title: "Retry",
-          unit: "times",
-        },
-        version: {
-          value: validated.data.ver,
-          title: "Firmware version",
-          unit: "",
+        trackerMeta: {
+          sig: {
+            value: validated.data.sig,
+            unit: "dBm",
+            title: "Mobile signal quality",
+          },
+          batt: {
+            value: validated.data.bat,
+            unit: "V",
+            title: "Battery level",
+          },
+          sol: {
+            value: validated.data.vlt,
+            unit: "V",
+            title: "Input voltage",
+          },
+          delay: {
+            seconds: validated.data.dly,
+            title:
+              "Time to wait for before next check-in, whilst staying online",
+            unit: "seconds",
+          },
+          sleep: {
+            seconds: validated.data.slp,
+            title: "Time to shutdown for before next check-in",
+            unit: "seconds",
+          },
+          retry: {
+            count: validated.data.rty,
+            title: "Number of retries it took to send this message",
+            unit: "times",
+          },
+          version: {
+            value: validated.data.ver,
+            title: "Firmware version",
+            unit: "",
+          },
+          ...(tracker.trackerNextCheckIn && {
+            variance: {
+              seconds: Math.round(
+                (new Date().getTime() - tracker.trackerNextCheckIn.getTime()) /
+                  1000
+              ),
+              title:
+                "Difference in seconds between the expected time this message would be recieved, and when it was actually recieved",
+              unit: "seconds",
+            },
+          }),
         },
       },
     });

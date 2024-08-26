@@ -8,6 +8,13 @@
       "when": 1722890125342,
       "tag": "0000_tearful_pete_wisdom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1724675685395,
+      "tag": "0001_wise_goblin_queen",
+      "breakpoints": true
     }
   ]
 }

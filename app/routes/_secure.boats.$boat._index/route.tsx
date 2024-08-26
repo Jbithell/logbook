@@ -1,4 +1,4 @@
-import { Table, Text, Title } from "@mantine/core";
+import { Code, Table, Text, Title } from "@mantine/core";
 import {
   json,
   LoaderFunctionArgs,
@@ -53,19 +53,20 @@ export default function App() {
             data: data.boat.logEntries.flatMap((logEntry) => {
               const observations = logEntry.observations as
                 | {
-                    batt: { value: number };
+                    trackerMeta: { batt: { value: number } };
                   }
                 | {};
               if (
                 Object.keys(observations).length !== 0 &&
-                "batt" in observations &&
-                typeof observations.batt.value === "number" &&
-                observations.batt.value > 0
+                "trackerMeta" in observations &&
+                "batt" in observations.trackerMeta &&
+                typeof observations.trackerMeta.batt.value === "number" &&
+                observations.trackerMeta.batt.value > 0
               )
                 return [
                   {
                     time: new Date(logEntry.timestamp).getTime(),
-                    batt: observations.batt.value,
+                    batt: observations.trackerMeta.batt.value,
                   },
                 ];
               else return [];
@@ -82,19 +83,22 @@ export default function App() {
             data: data.boat.logEntries.flatMap((logEntry) => {
               const observations = logEntry.observations as
                 | {
-                    sol: { value: number };
+                    trackerMeta: {
+                      sol: { value: number };
+                    };
                   }
                 | {};
               if (
                 Object.keys(observations).length !== 0 &&
-                "sol" in observations &&
-                typeof observations.sol.value === "number" &&
-                observations.sol.value > 0
+                "trackerMeta" in observations &&
+                "sol" in observations.trackerMeta &&
+                typeof observations.trackerMeta.sol.value === "number" &&
+                observations.trackerMeta.sol.value > 0
               )
                 return [
                   {
                     time: new Date(logEntry.timestamp).getTime(),
-                    batt: observations.sol.value,
+                    batt: observations.trackerMeta.sol.value,
                   },
                 ];
               else return [];
@@ -111,20 +115,22 @@ export default function App() {
             data: data.boat.logEntries.flatMap((logEntry) => {
               const observations = logEntry.observations as
                 | {
-                    sig: { value: number };
+                    trackerMeta: { sig: { value: number } };
                   }
                 | {};
               if (
                 Object.keys(observations).length !== 0 &&
-                "sig" in observations &&
-                typeof observations.sig.value === "number" &&
-                observations.sig.value !== 255
+                "trackerMeta" in observations &&
+                "sig" in observations.trackerMeta &&
+                typeof observations.trackerMeta.sig.value === "number" &&
+                observations.trackerMeta.sig.value !== 255
               )
                 return [
                   {
                     time: new Date(logEntry.timestamp).getTime(),
                     batt: Math.round(
-                      ((observations.sig.value * -1 + 115) / 63) * 100
+                      ((observations.trackerMeta.sig.value * -1 + 115) / 63) *
+                        100
                     ),
                   },
                 ];
@@ -174,7 +180,9 @@ export default function App() {
                 </ClientOnly>
               </Table.Td>
               <Table.Td>
-                <pre>{JSON.stringify(logEntry.observations, null, "\t")}</pre>
+                <Code block>
+                  {JSON.stringify(logEntry.observations, null, "\t")}
+                </Code>
               </Table.Td>
             </Table.Tr>
           ))}

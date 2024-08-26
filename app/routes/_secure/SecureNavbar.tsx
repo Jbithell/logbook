@@ -16,6 +16,7 @@ import classes from "./Navbar.module.css";
 const links = [
   { link: "/home", label: "Home" },
   { link: "/boats", label: "Boats" },
+  { link: "/trackers", label: "Trackers" },
 ];
 
 export function SecureNavbar({ name }: { name: string }) {

@@ -16,7 +16,7 @@ export const AuthSessions = sqliteTable(
     userId: integer("user", { mode: "number" })
       .notNull()
       .references(() => Users.id, { onUpdate: "cascade", onDelete: "cascade" }),
-    createdAt: text("created_at").$defaultFn(() => sql`(unixepoch())`),
+    createdAt: text("created_at").$defaultFn(() => sql`(unixepoch())`), // Doing this as a defaultfn means we're always using the server time, not mixing and matching server & database
     valid: integer("valid", { mode: "boolean" }).$default(() => true),
   },
   (table) => {

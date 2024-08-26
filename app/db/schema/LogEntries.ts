@@ -7,6 +7,7 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 import { Boats } from "./Boats";
+import { Trackers } from "./Trackers";
 import { Users } from "./Users";
 
 export const LogEntries = sqliteTable(
@@ -18,18 +19,24 @@ export const LogEntries = sqliteTable(
       .references(() => Boats.id, { onUpdate: "cascade", onDelete: "cascade" }),
     timestamp: integer("timestamp", { mode: "timestamp" })
       .notNull()
-      .default(sql`(unixepoch())`),
+      .$defaultFn(() => sql`(unixepoch())`), // Doing this as a defaultfn means we're always using the server time, not mixing and matching server & database
     created: integer("created", { mode: "timestamp" })
       .notNull()
-      .default(sql`(unixepoch())`),
+      .$defaultFn(() => sql`(unixepoch())`),
     updated: integer("updated", { mode: "timestamp" })
       .notNull()
-      .default(sql`(unixepoch())`)
+      .$defaultFn(() => sql`(unixepoch())`)
       .$onUpdate(() => sql`(unixepoch())`),
     source: text("source").notNull(),
     userId: integer("user", { mode: "number" })
       .references(() => Users.id, {
-        onUpdate: "set null",
+        onUpdate: "cascade",
+        onDelete: "set null",
+      })
+      .default(sql`NULL`),
+    trackerId: integer("tracker", { mode: "number" })
+      .references(() => Trackers.id, {
+        onUpdate: "cascade",
         onDelete: "set null",
       })
       .default(sql`NULL`),
@@ -58,5 +65,9 @@ export const LogEntriesRelations = relations(LogEntries, ({ one }) => ({
   user: one(Users, {
     fields: [LogEntries.userId],
     references: [Users.id],
+  }),
+  tracker: one(Trackers, {
+    fields: [LogEntries.userId],
+    references: [Trackers.id],
   }),
 }));

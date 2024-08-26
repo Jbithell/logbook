@@ -32,7 +32,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
         uuid: true,
         description: true,
       },
-      where: eq(Boats.ownerId, userId), // TODO grab the boats for the user too
+      where: eq(Boats.ownerId, userId), // TODO grab the boats for the user too - abstract this into a function because its also used by the trackers page to populate a list of boats
     }),
   });
 }

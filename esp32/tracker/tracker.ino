@@ -1,6 +1,6 @@
 // https://cdn.geekfactory.mx/sim7000g/SIM7000%20Series_AT%20Command%20Manual_V1.06.pdf
 #define HTTPSSERVER "logbook-1oi.pages.dev"
-#define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
+#define HTTPSPATH "/trackers/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
 #define SOFTWARE_VERSION "1.0.0"
 #define APN "iot.1nce.net"
 #define DEBUG // Comment out to disable debugging
