@@ -25,6 +25,10 @@ const validator = zod.object({
   h: zod.number(),
   m: zod.number(),
   s: zod.number(),
+  slp: zod.number(), // How many seconds the device is intending to sleep for after this (0 if it won't sleep, and instead will delay (below)). Use this to work out when you're next expecting a check-in
+  dly: zod.number(), // How many seconds the device will delay before sending the next message - this will keep it awake. Use this to work out when you're next expecting a check-in
+  rty: zod.number(), // How many times the device has retried sending this message
+  ver: zod.string(), // Firmware version
 });
 
 const getBoatFromParam = async (
@@ -135,6 +139,26 @@ export const loader = async ({
           value: validated.data.vlt,
           unit: "V",
           title: "Input voltage",
+        },
+        delay: {
+          seconds: validated.data.dly,
+          title: "Delay",
+          unit: "seconds",
+        },
+        sleep: {
+          seconds: validated.data.slp,
+          title: "Sleep",
+          unit: "seconds",
+        },
+        retry: {
+          count: validated.data.rty,
+          title: "Retry",
+          unit: "times",
+        },
+        version: {
+          value: validated.data.ver,
+          title: "Firmware version",
+          unit: "",
         },
       },
     });

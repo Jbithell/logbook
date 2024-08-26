@@ -1,7 +1,7 @@
 // https://cdn.geekfactory.mx/sim7000g/SIM7000%20Series_AT%20Command%20Manual_V1.06.pdf
 #define HTTPSSERVER "logbook-1oi.pages.dev"
 #define HTTPSPATH "/boats/TN661NmwYR1MDieq6TfPD/logentries/apiUpload.get"
-
+#define SOFTWARE_VERSION "1.0.0"
 // Set serial for debug console (to the Serial Monitor, default speed 115200)
 #define SerialMon Serial
 
@@ -61,7 +61,8 @@ void enableGPS(void)
     modem.sendAT("+CGPIO=0,48,1,1");
     if (modem.waitResponse(10000L) != 1)
     {
-        Serial.println("Set GPS Power HIGH Failed");
+        Serial.println("Set GPS Power HIGH Failed - restarting");
+        ESP.restart();
     }
     modem.enableGPS();
 }
@@ -73,7 +74,8 @@ void disableGPS(void)
     modem.sendAT("+CGPIO=0,48,1,0");
     if (modem.waitResponse(10000L) != 1)
     {
-        Serial.println("Set GPS Power LOW Failed");
+        Serial.println("Set GPS Power LOW Failed - restarting");
+        ESP.restart();
     }
     modem.disableGPS();
 }
@@ -152,8 +154,8 @@ void setup()
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, HIGH);
 
-    if (!EEPROM.begin(8))
-    { // Allow it to be up to 8 bytes - two floats
+    if (!EEPROM.begin(10))
+    { // Allow it to be up to 10 bytes - two floats for location plus an int for retry count
         Serial.println("EEPROM failed to initialise");
     }
 
@@ -360,15 +362,26 @@ void setup()
     Serial.println("Network has booted");
 }
 
-bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second)
+bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int month, int day, int hour, int minute, int second, int sleepTime, int delayTime)
 {
     Serial.println("Performing HTTPS GET request to upload on a 60 second timeout...");
+
+    // Update the retry count
+    int retryCount = 0;
+    EEPROM.get(8, retryCount);
+    if (isnan(retryCount))
+    {
+        retryCount = 0;
+    }
+    EEPROM.put(8, retryCount + 1);
+    EEPROM.commit();
+
     TinyGsmClientSecure clientSSL(modem, 0);
     HttpClient http(clientSSL, HTTPSSERVER, 443);
     http.connectionKeepAlive();         // Needed for HTTPs
     http.setHttpResponseTimeout(60000); // 60 seconds
     int requestStart = millis();
-    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac());
+    String url = String(HTTPSPATH) + "?lat=" + String(lat, 8) + "&lon=" + String(lon, 8) + "&sog=" + String(speed, 2) + "&alt=" + String(alt, 2) + "&y=" + String(year) + "&j=" + String(month) + "&d=" + String(day) + "&h=" + String(hour) + "&m=" + String(minute) + "&s=" + String(second) + "&sig=" + String(signalQualityDBM()) + "&bat=" + String(batteryLevel(), 4) + "&vlt=" + String(solarVoltage(), 4) + "&id=" + String(ESP.getEfuseMac() + "&slp=" + String(sleepTime) + "&dly=" + String(delayTime) + "&rty=" + String(retryCount) + "&ver=" + String(SOFTWARE_VERSION));
     Serial.println(url);
     int err = http.get(url);
     if (err != 0)
@@ -401,7 +414,7 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
         return false;
     }
 
-    //http.skipResponseHeaders();
+    // http.skipResponseHeaders();
 
     Serial.println(F("Response Headers:"));
     while (http.headerAvailable())
@@ -439,6 +452,11 @@ bool httpsGetRequest(float lat, float lon, float speed, float alt, int year, int
     Serial.print("HTTPs GET Request took ");
     Serial.print((millis() - requestStart) / 1000);
     Serial.println(" seconds");
+
+    // Reset the retry count
+    EEPROM.put(8, 0);
+    EEPROM.commit();
+
     return true;
 }
 /*
@@ -584,10 +602,66 @@ void loop()
     Serial.print(millis() / 1000);
     Serial.println(" seconds to get GPS fix");
 
+    /**
+     * Calculate the sleep time that would be appropriate for the next loop
+     */
+    int sleepTime = 0; // How long to go to deep sleep for
+    int delayTime = 0; // How long to delay for - this will
+    float solarVoltageValue = solarVoltage();
+    if (!foundGPS)
+    {
+        // If we didn't get a GPS fix, sleep for 5 minutes - even if the solar panel is charging. We might be inside a bag or something odd
+        Serial.print("On the basis of no GPS, setting SLEEP timer for ");
+        Serial.println(TIME_TO_SLEEP_NOGPS);
+        sleepTime = TIME_TO_SLEEP_NOGPS;
+    }
+    else if (isnan(eepromLat) || isnan(eepromLon))
+    {
+        // Has never had a fix, so might as well just stay awake and go round again straight away - its first boot basically
+        Serial.println("No previous GPS fix, so won't sleep on this cycle");
+        delayTime = 1;
+    }
+    else if (solarVoltageValue > 0.1)
+    {
+        // If we're charging, don't sleep, we'll assume power is unlimited and free
+        Serial.print("Charging, so going to set DELAY timer for ");
+        Serial.println(TIME_TO_SLEEP);
+        delayTime = TIME_TO_SLEEP;
+    }
+    else if (String(eepromLat, 4) != String(lat, 4) || String(eepromLon, 4) != String(lon, 4)) // Do the comparison with strings because its a bit easier
+    {
+        /*
+        Decimal Places  	Degrees 	Distance
+        0	1.0	                        111 km
+        1	0.1	                        11.1 km
+        2	0.01	                    1.11 km
+        3	0.001	                    111 m
+        4	0.0001	                    11.1 m
+        5	0.00001	                    1.11 m
+        6	0.000001	                111 mm
+        7	0.0000001	                11.1 mm
+        8	0.00000001	                1.11 mm // This is the default for this chip
+        */
+        // If we're here, we've moved more than 11.1m from the last known location which suggests we're moving enough that we should try and send more data more quickly, and that its probably not a GPS error
+        Serial.print("Moved more than 11.1m since last GPS fix, so using up a bit more battery to stay awake data more frequently. Setting a SLEEP timer for ");
+        Serial.print(TIME_TO_SLEEP);
+        Serial.println(" seconds");
+        delayTime = TIME_TO_SLEEP;
+    }
+    else
+    {
+        // We're not moving and we're not charging, so lets rein back in the battery usage
+        Serial.print("Moved less than 11.1m, so going for a longer SLEEP timer ");
+        Serial.print(TIME_TO_SLEEP_BATT);
+        Serial.println(" seconds");
+        sleepTime = TIME_TO_SLEEP_BATT;
+    }
+
     SIM70xxRegStatus s = modem.getRegistrationStatus();
     if (s != REG_OK_HOME && s != REG_OK_ROAMING)
     {
         Serial.println("Devices lost network connect!");
+        ESP.restart();
     }
     else
     {
@@ -597,14 +671,14 @@ void loop()
             Serial.println("Sending data to server");
             if (foundGPS)
             {
-                if (httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second))
+                if (httpsGetRequest(lat, lon, speed, alt, year, month, day, hour, minute, second, sleepTime, delayTime))
                 {
                     break;
                 }
             }
             else
             {
-                if (httpsGetRequest(-91, -181, -99, -99, 0, 0, 0, 0, 0, 0))
+                if (httpsGetRequest(-91, -181, -99, -99, 0, 0, 0, 0, 0, 0, sleepTime, delayTime))
                 {
                     break;
                 }
@@ -641,57 +715,12 @@ void loop()
     Serial.print("Cycle complete: ");
     Serial.println(millis() / 1000);
     digitalWrite(LED_PIN, LOW); // Go low as we drift off to sleep
-
-    // GO TO SLEEP
-
-    if (!foundGPS)
+    if (sleepTime > 0)
     {
-        // If we didn't get a GPS fix, sleep for 5 minutes - even if the solar panel is charging. We might be inside a bag or something odd
-        Serial.print("On the basis of no GPS, sleeping for ");
-        Serial.println(TIME_TO_SLEEP_NOGPS);
-        sleep(TIME_TO_SLEEP_NOGPS);
-        return;
+        sleep(sleepTime);
     }
-    if (isnan(eepromLat) || isnan(eepromLon))
+    else
     {
-        // Has never had a fix, so might as well just stay awake and go round again in a minute
-        Serial.println("No previous GPS fix, staying awake");
-        delay(1000);
-        return;
+        delay(delayTime * 1000);
     }
-    float solarVoltageValue = solarVoltage();
-    if (solarVoltageValue > 0.1)
-    {
-        // If we're charging, don't sleep, we'll assume power is unlimited and free
-        Serial.print("Charging, staying awake but waiting ");
-        Serial.println(TIME_TO_SLEEP);
-        delay(TIME_TO_SLEEP * 1000);
-        return;
-    }
-    if (String(eepromLat, 4) != String(lat, 4) || String(eepromLon, 4) != String(lon, 4)) // Do the comparison with strings because its a bit easier
-    {
-        /*
-        Decimal Places  	Degrees 	Distance
-        0	1.0	                        111 km
-        1	0.1	                        11.1 km
-        2	0.01	                    1.11 km
-        3	0.001	                    111 m
-        4	0.0001	                    11.1 m
-        5	0.00001	                    1.11 m
-        6	0.000001	                111 mm
-        7	0.0000001	                11.1 mm
-        8	0.00000001	                1.11 mm // This is the default for this chip
-        */
-        // If we're here, we've moved more than 11.1m from the last known location which suggests we're moving enough that we should try and send more data more quickly, and that its probably not a GPS error
-        Serial.print("Moved more than 11.1m, so using up a bit more battery to stay awake data more frequently. Waiting ");
-        Serial.print(TIME_TO_SLEEP);
-        Serial.println(" seconds");
-        delay(TIME_TO_SLEEP * 1000);
-        return;
-    }
-    // We're not moving and we're not charging, so lets rein back in the battery usage
-    Serial.print("Moved less than 11.1m, so going for a longer sleep. Waiting ");
-    Serial.print(TIME_TO_SLEEP_BATT);
-    Serial.println(" seconds");
-    sleep(TIME_TO_SLEEP_BATT);
 }
