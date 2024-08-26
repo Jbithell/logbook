@@ -11,6 +11,7 @@ import { ClientOnly } from "remix-utils/client-only";
 import { db } from "~/d1client.server";
 import { Boats } from "~/db/schema/Boats";
 import { requireAuthenticatedUserId } from "~/utils/authsession.server";
+import { BatteryGraph } from "./BatteryGraph";
 import { Map } from "./Map.client";
 
 export async function loader({ params, request, context }: LoaderFunctionArgs) {
@@ -42,9 +43,31 @@ export async function loader({ params, request, context }: LoaderFunctionArgs) {
 
 export default function App() {
   const data = useLoaderData<typeof loader>();
+  const batteryGraphData = data.boat.logEntries.flatMap((logEntry) => {
+    const observations = logEntry.observations as
+      | {
+          batt: { value: number };
+        }
+      | {};
+    if (
+      Object.keys(observations).length !== 0 &&
+      "batt" in observations &&
+      typeof observations.batt.value === "number"
+    )
+      return [
+        {
+          time: new Date(logEntry.timestamp).getTime(),
+          batt: observations.batt.value,
+        },
+      ];
+    else return [];
+  });
   return (
     <>
       <Text>Specific Boat {data.boat.name}</Text>
+      <BatteryGraph
+        data={[{ data: batteryGraphData, name: "Battery", color: "blue.5" }]}
+      />
       <Table>
         <Table.Thead>
           <Table.Tr>

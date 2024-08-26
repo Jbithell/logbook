@@ -23,7 +23,6 @@ const ReCentreButton = (props: {
   zoom: number | undefined;
 }) => {
   const map = useMap();
-  console.log(map.getCenter().distanceTo(new LatLng(props.lat, props.lon)));
   return (
     <div className="leaflet-top leaflet-right">
       <div className="leaflet-control leaflet-bar">

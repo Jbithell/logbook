@@ -5,10 +5,8 @@ import {
   ColorSchemeScript,
   Container,
   Group,
-  MantineColorsTuple,
   Text,
   Title,
-  createTheme,
 } from "@mantine/core";
 import "@mantine/core/styles.css";
 import "@mantine/dates/styles.css";
@@ -28,27 +26,6 @@ import {
 import classes from "./components/ErrorBoundary.module.css";
 import { MantineProviderWrapper } from "./components/theme";
 import { getAuthenticatedUser } from "./utils/authsession.server";
-
-const myColor: MantineColorsTuple = [
-  "#ffe9f0",
-  "#ffd0dd",
-  "#faa0b8",
-  "#f66d90",
-  "#f2426f",
-  "#f1275a",
-  "#f1184f",
-  "#d70841",
-  "#c00038",
-  "#a9002f",
-];
-
-const theme = createTheme({
-  primaryColor: "pink",
-  colors: {
-    pink: myColor,
-  },
-  primaryShade: 3,
-});
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   return json({
