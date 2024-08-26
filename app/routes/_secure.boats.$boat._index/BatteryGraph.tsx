@@ -20,7 +20,7 @@ export const BatteryGraph = (props: { data: ScatterChartSeries[] }) => {
         domain: [lowestX.time, highestX.time],
       }}
       yAxisProps={{
-        domain: [lowestY.time, highestY.time],
+        domain: [lowestY.batt, highestY.batt],
       }}
       dataKey={{ x: "time", y: "batt" }}
       xAxisLabel="Time"
