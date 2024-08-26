@@ -148,20 +148,21 @@ export default function App() {
             data: data.boat.logEntries.flatMap((logEntry) => {
               const observations = logEntry.observations as
                 | {
-                    trackerMeta: { variance: { seconds: number } };
+                    trackerMeta: { variance: { value: number } };
                   }
                 | {};
               if (
                 Object.keys(observations).length !== 0 &&
                 "trackerMeta" in observations &&
                 "sig" in observations.trackerMeta &&
-                typeof observations.trackerMeta.variance.seconds === "number" &&
-                observations.trackerMeta.variance.seconds !== 255
+                "value" in observations.trackerMeta.variance &&
+                typeof observations.trackerMeta.variance.value === "number" &&
+                observations.trackerMeta.variance.value !== 255
               )
                 return [
                   {
                     time: new Date(logEntry.timestamp).getTime(),
-                    batt: observations.trackerMeta.variance.seconds,
+                    batt: observations.trackerMeta.variance.value,
                   },
                 ];
               else return [];

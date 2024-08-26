@@ -174,18 +174,18 @@ export const loader = async ({
             title: "Input voltage",
           },
           delay: {
-            seconds: validated.data.dly,
+            value: validated.data.dly,
             title:
               "Time to wait for before next check-in, whilst staying online",
             unit: "seconds",
           },
           sleep: {
-            seconds: validated.data.slp,
+            value: validated.data.slp,
             title: "Time to shutdown for before next check-in",
             unit: "seconds",
           },
           retry: {
-            count: validated.data.rty,
+            value: validated.data.rty,
             title: "Number of retries it took to send this message",
             unit: "times",
           },
@@ -196,7 +196,7 @@ export const loader = async ({
           },
           ...(tracker.trackerNextCheckIn && {
             variance: {
-              seconds: Math.round(
+              value: Math.round(
                 (new Date().getTime() - tracker.trackerNextCheckIn.getTime()) /
                   1000
               ),
